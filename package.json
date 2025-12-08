@@ -24,6 +24,7 @@
     "aws-amplify": "^6.15.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "firebase": "^12.6.0",
     "lucide-react": "^0.553.0",
     "next": "16.0.3",
@@ -65,7 +66,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/remuechat/ibarangay_system/issues"
   },
