@@ -12,50 +12,42 @@ import {
 
 interface DynamicTableProps {
   data: Record<string, any>[];
-  caption?: string;
-  onClickCell?: (key: string, value: any, row: Record<string, any>) => void;
+  onRowClick?: (row: Record<string, any>) => void; // <-- Row click handler
 }
 
-export default function DynamicTable({ data, caption, onClickCell }: DynamicTableProps) {
+export default function DynamicTable({ data, onRowClick }: DynamicTableProps) {
   if (!data || data.length === 0) {
-    return <div className="p-4 text-center">No data available</div>;
+    return <div className="p-4 text-center">No data available. You can start adding more!</div>;
   }
 
-  // Dynamically get column names from first object
   const columns = Object.keys(data[0]);
 
   return (
     <div className="border rounded-xl shadow-md p-2 bg-gray-50">
-    <Table>
-      {caption && <TableCaption>{caption}</TableCaption>}
-      <TableHeader>
-        <TableRow>
-          {columns.map((col) => (
-            <TableHead key={col}>{col.replace(/([A-Z])/g, " $1")}</TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {data.map((row, idx) => (
-          <TableRow key={idx}>
+      <Table>
+        <TableHeader>
+          <TableRow>
             {columns.map((col) => (
-              <TableCell key={col}>
-                {onClickCell && col.toLowerCase() === "history" ? (
-                  <button
-                    className="text-blue-600 underline hover:text-blue-800"
-                    onClick={() => onClickCell(col, row[col], row)}
-                  >
-                    {row[col]}
-                  </button>
-                ) : (
-                  row[col]
-                )}
-              </TableCell>
+              <TableHead key={col}>{col.replace(/([A-Z])/g, " $1")}</TableHead>
             ))}
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {data.map((row, idx) => (
+            <TableRow
+              key={idx}
+              className="hover:bg-gray-100 transition-colors cursor-pointer"
+              onClick={() => onRowClick && onRowClick(row)}
+            >
+              {columns.map((col) => (
+                <TableCell key={col}>
+                  {row[col]}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
