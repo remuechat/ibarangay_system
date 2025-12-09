@@ -12,8 +12,12 @@ export default function Home() {
       
       <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
         <Button 
-          onClick={() => router.push("/maintenance")}>
+          onClick={() => router.push("/officials/service-delivery/maintenance")}>
           Go to maintenance page
+        </Button>
+        <Button 
+          onClick={() => router.push("/officials/service-delivery/projects/property")}>
+          Go here to see the sample property page that's connected to AWS
         </Button>
         <br></br>
 
