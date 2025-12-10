@@ -1,4 +1,6 @@
 "use client"
+
+
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -25,6 +27,7 @@ declare global {
 }
 
 export function LoginForm({
+  
   className,
   ...props
 }: React.ComponentProps<"div">) {
@@ -79,9 +82,9 @@ export function LoginForm({
           setErrors(fieldErrors);
           return;
         }
-    
+        window.location.href = "/officials";
         console.log("Login Successful", result.data);
-      } 
+      }; 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="overflow-hidden p-0">
@@ -91,7 +94,7 @@ export function LoginForm({
               <div className="flex flex-col items-center gap-2 text-center">
                 <h1 className="text-2xl font-bold">Welcome back</h1>
                 <p className="text-muted-foreground text-balance">
-                  Login to your Acme Inc account
+                  Login to your iBarangay account
                 </p>
               </div>
               <Field>
@@ -132,7 +135,9 @@ export function LoginForm({
                     )}
               </Field>
               <Field>
-                <Button type="submit">Login</Button>
+                <Button type="submit" className="w-full bg-neutral-950 hover:bg-blue-700 text-white">
+                Login
+                </Button>
               </Field>
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
                 Or continue with
