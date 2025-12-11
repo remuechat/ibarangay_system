@@ -26,7 +26,6 @@ import {
 } from "lucide-react"
 
 // Here are the views used in this component. Feel welcome to edit or add more views!
-import DashboardView from "./dashboard";
 import DynamicTable from "@/components/dynamicViewers/dynamic-table";
 import DynamicQueue from "@/components/dynamicViewers/dynamic-queue"; // needs more editing!
 import DynamicKanban from "@/components/dynamicViewers/dynamic-kanban";
@@ -415,9 +414,7 @@ export default function MaintenancePage() {
       </div>      
 
       {/* This is the page switcher if you want to change between views */}
-      { view === "dashboard" ? (
-        <DashboardView />
-      ) : view === "table" ? (
+      { view === "table" ? (
         <>
           <DynamicTable
             data={formattedData}
