@@ -1,8 +1,7 @@
-'use client';
+'use client'
 
-import { useState, useMemo } from "react";
+import { useState, useMemo } from "react"
 
-// from SHADCN UI for components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,78 +13,68 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 
-
-
-// from LUCIDE-REACT for icons
 import { 
   LayoutDashboard, 
   Table as TableIcon, 
   ListChecks, 
   KanbanSquare,
-  Search,
-  CreditCard,
+  Search
 } from "lucide-react"
 
-// Here are the views used in this component. Feel welcome to edit or add more views!
 import DynamicTable from "@/components/dynamicViewers/dynamic-table";
 import DynamicQueue from "@/components/dynamicViewers/dynamic-queue"; // needs more editing!
 import DynamicKanban from "@/components/dynamicViewers/dynamic-kanban";
 import { format } from "date-fns";
-
-// ----- Unified Dataset, add more if you need to! -----
+import { DateTimeFormat } from "aws-cdk-lib/aws-logs";
 
 const columnHeaders: Record<string, string> = {
   id: "ID",
-  type: "Type",
-  status: "Status",
-  priority: "Priority",
-  assignedTo: "Assigned To",
-  lastServiced: "Last Serviced",
-  nextServiceDue: "Next Service Due",
-  scheduledDate: "Scheduled Date",
-  issue: "Issue",
+  residentInvolved: "Resident Involved",
+  type: "Type of Violation",
+  date: "Date of Violation",
+  officer: "Officer In-charge",
+  fines: "Amount of Fines",
+  status: "Status", //with payment number if already paid
+  receipt: "Receipt Number",
 };
 
-const initialData = [
-  {
-    id: "PR-0012",
-    type: "AC Unit",
-    status: "Operational",
-    priority: 3,
-    assignedTo: "John Santos",
-    lastServiced: new Date("2025-01-12"),
-    nextServiceDue: new Date("2025-04-12"),
-    scheduledDate: new Date("2025-12-10"),
-    issue: "AC filter replacement",
-  },
-  {
-    id: "PR-0047",
-    type: "Generator",
-    status: "Under Maintenance",
-    priority: 2,
-    assignedTo: "Maria Dela Cruz",
-    lastServiced: new Date("2025-02-05"),
-    nextServiceDue: new Date("2025-05-05"),
-    scheduledDate: new Date("2025-12-12"),
-    issue: "Generator oil change",
-  },
-  {
-    id: "PR-0153",
-    type: "Water Pump",
-    status: "Operational",
-    priority: 1,
-    assignedTo: "Carlo Reyes",
-    lastServiced: new Date("2025-01-28"),
-    nextServiceDue: new Date("2025-04-28"),
-    scheduledDate: new Date("2025-12-15"),
-    issue: "Pump inspection",
-  },
+const tempData = [
+    {
+        id: "001",
+        residentInvolved: "Taylro Sift",
+        type: "Overspeeding",
+        date: new Date("2025-01-12"),
+        officer: "Justin Nabunturan",
+        fines: "P100000",
+        status: "Pending", 
+        receipt: "-----",
+    },
+    {
+        id: "001",
+        residentInvolved: "Taylro Sift",
+        type: "Overspeeding",
+        date: new Date("2025-01-12"),
+        officer: "Justin Nabunturan",
+        fines: "P100000",
+        status: "Paid", 
+        receipt: "001-100-2025",
+    },
+    {
+        id: "001",
+        residentInvolved: "Taylro Sift",
+        type: "Overspeeding",
+        date: new Date("2025-01-12"),
+        officer: "Justin Nabunturan",
+        fines: "P100000",
+        status: "Paid", 
+        receipt: "001-100-2025",
+    },
+        
 ];
 
-// (Edit this) ----- Entry Drawer Component -----
-// If you want to change the SHEET/DRAWER UI, modify this component
-// It handles both creating new entries and editing existing ones
-// Just add the edits needed if you're making entries or editing existing ones
+
+
+//SHEET
 function EntryDrawer({ open, onOpenChange, entry, onSave, onDelete }: { open: boolean; onOpenChange: (val: boolean) => void; entry: any | null; onSave: (data: any) => void; onDelete?: (id: string) => void }) {
   const [form, setForm] = useState<any>(entry || {});
 
@@ -117,15 +106,16 @@ function EntryDrawer({ open, onOpenChange, entry, onSave, onDelete }: { open: bo
 
         <div className="flex flex-col gap-3 mt-4">
           <Input placeholder="ID" value={form.id || ""} onChange={(e) => handleChange("id", e.target.value)} disabled={!!form.id} />
-          <Input placeholder="Type" value={form.type || ""} onChange={(e) => handleChange("type", e.target.value)} />
-          <Input placeholder="Status" value={form.status || ""} onChange={(e) => handleChange("status", e.target.value)} />
-          <Input placeholder="Assigned To" value={form.assignedTo || ""} onChange={(e) => handleChange("assignedTo", e.target.value)} />
-          <Input placeholder="Issue" value={form.issue || ""} onChange={(e) => handleChange("issue", e.target.value)} />
-          <Input type="number" placeholder="Priority (1-5)" value={form.priority || ""} onChange={(e) => handleChange("priority", Number(e.target.value))} />
-          <Input type="date" placeholder="Last Serviced" value={form.lastServiced ? format(new Date(form.lastServiced), "yyyy-MM-dd") : ""} onChange={(e) => handleChange("lastServiced", new Date(e.target.value))} />
-          <Input type="date" placeholder="Next Service Due" value={form.nextServiceDue ? format(new Date(form.nextServiceDue), "yyyy-MM-dd") : ""} onChange={(e) => handleChange("nextServiceDue", new Date(e.target.value))} />
-          <Input type="date" placeholder="Scheduled Date" value={form.scheduledDate ? format(new Date(form.scheduledDate), "yyyy-MM-dd") : ""} onChange={(e) => handleChange("scheduledDate", new Date(e.target.value))} />
-
+          <Input type="date" placeholder="Date Reported" value={form.dateReported ? format(new Date(form.dateReported), "yyyy-MM-dd") : ""} onChange={(e) => handleChange("dateReported", new Date(e.target.value))} />
+          <Input placeholder="Type" value={form.type || ""} onChange={(e) => handleChange("type", e.target.value)} disabled={!!form.type} />
+          <Input placeholder="Location" value={form.location || ""} onChange={(e) => handleChange("location", e.target.value)} disabled={!!form.location} />
+          <Input placeholder="Reported By" value={form.reportedBy || ""} onChange={(e) => handleChange("reportedBy", e.target.value)} disabled={!!form.reportedBy} />
+          <Input placeholder="Description" value={form.description || ""} onChange={(e) => handleChange("description", e.target.value)} disabled={!!form.description} />
+          <Input placeholder="Involved Parties" value={form.involvedParties || ""} onChange={(e) => handleChange("involvedParties", e.target.value)} disabled={!!form.involvedParties} />
+          <Input placeholder="Status" value={form.status || ""} onChange={(e) => handleChange("status", e.target.value)} disabled={!!form.status} />
+          <Input placeholder="Assigned Officer" value={form.assignedOfficer || ""} onChange={(e) => handleChange("assignedOfficer", e.target.value)} disabled={!!form.assignedOfficer} />
+          <Input type="date" placeholder="Date Resolved" value={form.dateResolved ? format(new Date(form.dateResolved), "yyyy-MM-dd") : ""} onChange={(e) => handleChange("dateResolved", new Date(e.target.value))} />
+          
           <div className="flex gap-2 mt-2 justify-end">
             {form.id && onDelete && (
               <Button variant="destructive" onClick={() => { onDelete(form.id); onOpenChange(false); }}>Delete</Button>
@@ -139,9 +129,7 @@ function EntryDrawer({ open, onOpenChange, entry, onSave, onDelete }: { open: bo
   );
 }
 
-
-// Edit this ----- Advanced Search Component -----
-// Based on the page, modify this depending on the search that you might need
+//SEARCH BAR
 function SearchBar({ data, onSearch }: { data: any[], onSearch: (filtered: any[]) => void }) {
   const [query, setQuery] = useState("");
   const [filterBy, setFilterBy] = useState("all");
@@ -204,7 +192,6 @@ function SearchBar({ data, onSearch }: { data: any[], onSearch: (filtered: any[]
   );
 }
 
-// You can edit this! Mostly this handles popover search parameters. Add more if you like!
 function SearchPopover({
   data,
   onSearch,
@@ -213,6 +200,7 @@ function SearchPopover({
   data: any[];
   onSearch: (filtered: any[]) => void;
   columnHeaders: Record<string, string>;
+
 }) {
   const [query, setQuery] = useState("");
   const [filterBy, setFilterBy] = useState("all");
@@ -291,12 +279,11 @@ function SearchPopover({
           <SelectContent>
             <SelectItem value="all">All Columns</SelectItem>
             {data.length > 0 &&
-            Object.keys(data[0]).map((col) => (
-            <SelectItem key={col} value={col}>
-            {columnHeaders[col] || col.replace(/([A-Z])/g, " $1")}
+                Object.keys(data[0]).map((col) => (
+                <SelectItem key={col} value={col}>
+                {columnHeaders[col] || col.replace(/([A-Z])/g, " $1")}
             </SelectItem>
-            ))}
-
+             ))}
           </SelectContent>
         </Select>
 
@@ -334,15 +321,12 @@ function SearchPopover({
   );
 }
 
-
-// (edit this) ----- Main Maintenance Page -----
-// Edit this if you'd like to edit the page itself
-export default function MaintenancePage() {
-  const [view, setView] = useState<"dashboard" | "table" | "queue" | "kanban" | "cards">("queue");
+export default function ViolationAndFinesPage() {
+  const [view, setView] = useState<"dashboard" | "table" | "queue" | "kanban">("table");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
-  const [data, setData] = useState(initialData);
-  const [filteredData, setFilteredData] = useState(initialData);
+  const [data, setData] = useState(tempData);
+  const [filteredData, setFilteredData] = useState(tempData);
 
   // Edit the handler to open drawer on history click
   const handleHistoryClick = (key: string, value: any, row: any) => {
@@ -368,18 +352,11 @@ export default function MaintenancePage() {
     setFilteredData(prev => prev.filter(d => d.id !== id));
   };
 
-  // Format dates for rendering to avoid React errors
   const formattedData = filteredData.map(d => ({
     ...d,
-    lastServiced: d.lastServiced ? format(new Date(d.lastServiced), "yyyy-MM-dd") : "",
-    nextServiceDue: d.nextServiceDue ? format(new Date(d.nextServiceDue), "yyyy-MM-dd") : "",
-    scheduledDate: d.scheduledDate ? format(new Date(d.scheduledDate), "yyyy-MM-dd") : "",
+    dateReported: d.date ? format(new Date(d.date), "yyyy-MM-dd") : "",
   }));
 
-  // Queue ordering by priority desc, then ID
-  const queueData = formattedData
-    .filter((d:any) => d.viewType !== "table" || true) // every item supports both views
-    .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id));
 
   return (
     <div className="p-4 space-y-4">
@@ -393,9 +370,9 @@ export default function MaintenancePage() {
             className="text-lg font-bold px-4 py-2"
           >
             {/* <LayoutDashboard className="w-4 h-4 mr-2" /> */}
-            Maintenance Dashboard
+            Reported Incidents
           </Button>
-          
+
           {/* Table */}
           <Button
             variant={view === "table" ? "default" : "outline"}
@@ -425,21 +402,23 @@ export default function MaintenancePage() {
         </div>
         <div className="flex gap-2">
           {/* If you want to add search bars, add this component here */}
-          <SearchPopover data={data} onSearch={setFilteredData} columnHeaders={columnHeaders} />
+          <SearchPopover 
+          data={data} 
+          onSearch={setFilteredData}
+          columnHeaders={columnHeaders} />
           <Button variant="default" onClick={() => { setSelectedEntry(null); setDrawerOpen(true); }}>New</Button>
         </div>
       </div>      
 
       {/* This is the page switcher if you want to change between views */}
-
       { view === "table" ? (
         <>
           <DynamicTable
             data={formattedData}
-            columnHeaders={columnHeaders}
+            columnHeaders={columnHeaders} 
             onRowClick={(row) => {
-              setSelectedEntry(row); // open drawer
-              setDrawerOpen(true);
+            setSelectedEntry(row); 
+            setDrawerOpen(true);
             }}
           />
         </>
@@ -456,14 +435,14 @@ export default function MaintenancePage() {
               >
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-semibold">{row.type}</span>
-                  <span className="text-sm font-medium text-gray-500">Priority {row.priority}</span>
+                  <span className="text-sm font-medium text-gray-500">{row.status}</span>
                 </div>
                 <div className="text-sm text-gray-700 mb-1">ID: {row.id}</div>
-                <div className="text-sm text-gray-700 mb-1">Assigned: {row.assignedTo}</div>
+                <div className="text-sm text-gray-700 mb-1">Assigned Officer: {row.assignedOfficer}</div>
                 {row.issue && <div className="text-sm text-purple-600 underline">{row.issue}</div>}
                 {row.scheduledDate && (
                   <div className="text-xs text-gray-500">
-                    Scheduled: {format(new Date(row.scheduledDate), "yyyy-MM-dd")}
+                    Date Reported: {format(new Date(row.dateReported), "yyyy-MM-dd")}
                   </div>
                 )}
               </div>
@@ -486,3 +465,4 @@ export default function MaintenancePage() {
     </div>
   );
 }
+

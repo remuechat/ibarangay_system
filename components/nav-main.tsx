@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import { ChevronRight, type LucideIcon } from "lucide-react"
-
+import { useState } from "react";
+import { ChevronRight, type LucideIcon } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+} from "@/components/ui/collapsible";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -16,34 +16,40 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
+import { usePathname } from "next/navigation";
 
 export function NavMain({
   items,
 }: {
   items: {
-    title: string
-    url: string
-    icon?: LucideIcon
-    isActive?: boolean
+    title: string;
+    url: string;
+    icon?: LucideIcon;
+    isActive?: boolean;
     items?: {
-      title: string
-      url: string
-    }[]
-  }[]
+      title: string;
+      url: string;
+    }[];
+  }[];
 }) {
+  const pathname = usePathname();
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
-          const hasSubItems = item.items && item.items.length > 0
+          const hasSubItems = Array.isArray(item.items) && item.items.length > 0;
+
+          // ✅ Only initialize open state based on pathname once
+          const [open, setOpen] = useState(() => pathname.startsWith(item.url));
 
           return (
             <Collapsible
               key={item.title}
-              asChild
-              defaultOpen={item.isActive}
+              open={open}
+              onOpenChange={setOpen}
               className="group/collapsible"
             >
               <SidebarMenuItem>
@@ -52,7 +58,11 @@ export function NavMain({
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
                     {hasSubItems && (
-                      <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                      <ChevronRight
+                        className={`ml-auto transition-transform duration-200 ${
+                          open ? "rotate-90" : ""
+                        }`}
+                      />
                     )}
                   </SidebarMenuButton>
                 </CollapsibleTrigger>
@@ -62,7 +72,10 @@ export function NavMain({
                     <SidebarMenuSub>
                       {item.items!.map((subItem) => (
                         <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton asChild>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={pathname === subItem.url}
+                          >
                             <a href={subItem.url}>
                               <span>{subItem.title}</span>
                             </a>
@@ -74,9 +87,9 @@ export function NavMain({
                 )}
               </SidebarMenuItem>
             </Collapsible>
-          )
+          );
         })}
       </SidebarMenu>
     </SidebarGroup>
-  )
+  );
 }

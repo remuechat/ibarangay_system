@@ -1,171 +1,488 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from "recharts";
+import { useState, useMemo } from "react"
 
-type Purok = {
-  name: string;
-  residents: number;
-  tenants: number;
-  total: number;
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+
+import { 
+  LayoutDashboard, 
+  Table as TableIcon, 
+  ListChecks, 
+  KanbanSquare,
+  Search
+} from "lucide-react"
+
+import DynamicTable from "@/components/dynamicViewers/dynamic-table";
+import DynamicQueue from "@/components/dynamicViewers/dynamic-queue"; // needs more editing!
+import DynamicKanban from "@/components/dynamicViewers/dynamic-kanban";
+import { format } from "date-fns";
+import { DateTimeFormat } from "aws-cdk-lib/aws-logs";
+
+const columnHeaders: Record<string, string> = {
+  id: "ID",
+  dateReported: "Date Reported",
+  type: "Type",
+  location: "Location",
+  reportedBy: "Reported By",
+  description: "Description",
+  involvedParties: "Involved Parties",
+  status: "Status",
+  assignedOfficer: "Assigned Officer",
+  dateResolved: "Date Resolved",
 };
 
-export default function SeePuroksView() {
-  const [puroks, setPuroks] = useState<Purok[]>([]);
-  const [totalPopulation, setTotalPopulation] = useState(0);
-
-  const PUROK_COLORS = ["#4f46e5", "#2563eb", "#f97316", "#16a34a", "#db2777", "#facc15"];
-  const RES_TEN_COLORS = ["#2563eb", "#f97316"]; // Residents = blue, Tenants = orange
-
- useEffect(() => {
-  async function fetchPuroks() {
-    const snapshot = await getDocs(collection(db, "residents"));
-    const map: Record<string, { residents: number; tenants: number }> = {};
-
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      const purokName = data.purok || "Unknown";
-
-      if (!map[purokName]) map[purokName] = { residents: 0, tenants: 0 };
-
-      const householdCount = data.householdMembers?.length || 0;
-
-      if (data.ownerType === "resident") {
-        // Resident head + household members
-        map[purokName].residents += 1; // head
-        map[purokName].residents += householdCount; // household members
-      } else if (data.ownerType === "landlord") {
-        // Landlord owner
-        map[purokName].residents += 1; // landlord counts as resident
-
-        if (data.ownerLivesInProperty) {
-          // counts as tenant + household members
-          map[purokName].tenants += 1; // landlord as tenant
-          map[purokName].tenants += householdCount; // household members
-        } else {
-          // only household members are tenants
-          map[purokName].tenants += householdCount;
-        }
-      }
-    });
-
-    const list: Purok[] = Object.entries(map).map(([name, counts]) => ({
-      name,
-      residents: counts.residents,
-      tenants: counts.tenants,
-      total: counts.residents + counts.tenants,
-    }));
-
-    setPuroks(list);
-    setTotalPopulation(list.reduce((sum, p) => sum + p.total, 0));
-  }
-
-  fetchPuroks();
-}, []);
+const tempData = [
+    {
+        id: "INC-0001",
+        dateReported: new Date("2025-01-12"),
+        type: "Noise Complaint",
+        location: "House No. 001, Nabunturan St., Prk. 22-C",
+        reportedBy: "Justin Nabunturan",
+        description: "Saba kaayo over sa curfew",
+        involvedParties: "Family",
+        status: "Under Investigation",
+        assignedOfficer: "Taylro Switf",
+        dateResolved: new Date("2025-01-12"),
+    },
+    {
+        id: "INC-0001",
+        dateReported: new Date("2025-01-12"),
+        type: "Noise Complaint",
+        location: "House No. 001, Nabunturan St., Prk. 22-C",
+        reportedBy: "Justin Nabunturan",
+        description: "Saba kaayo over sa curfew",
+        involvedParties: "Family",
+        status: "Under Investigation",
+        assignedOfficer: "Taylro Switf",
+        dateResolved: new Date("2025-01-12"),
+    },
+    {
+        id: "INC-0001",
+        dateReported: new Date("2025-01-12"),
+        type: "Noise Complaint",
+        location: "House No. 001, Nabunturan St., Prk. 22-C",
+        reportedBy: "Justin Nabunturan",
+        description: "Saba kaayo over sa curfew",
+        involvedParties: "Family",
+        status: "Under Investigation",
+        assignedOfficer: "Taylro Switf",
+        dateResolved: new Date("2025-01-12"),
+    },
+    {
+        id: "INC-0001",
+        dateReported: new Date("2025-01-12"),
+        type: "Noise Complaint",
+        location: "House No. 001, Nabunturan St., Prk. 22-C",
+        reportedBy: "Justin Nabunturan",
+        description: "Saba kaayo over sa curfew",
+        involvedParties: "Family",
+        status: "Under Investigation",
+        assignedOfficer: "Taylro Switf",
+        dateResolved: new Date("2025-01-12"),
+    }
+];
 
 
-  const barangayPieData = puroks.map(p => ({ name: p.name, value: p.total }));
-  const overallResTenData = [
-    { name: "Residents", value: puroks.reduce((sum, p) => sum + p.residents, 0) },
-    { name: "Tenants", value: puroks.reduce((sum, p) => sum + p.tenants, 0) },
-  ];
+
+//SHEET
+function EntryDrawer({ open, onOpenChange, entry, onSave, onDelete }: { open: boolean; onOpenChange: (val: boolean) => void; entry: any | null; onSave: (data: any) => void; onDelete?: (id: string) => void }) {
+  const [form, setForm] = useState<any>(entry || {});
+
+  const handleChange = (key: string, value: any) => {
+    setForm((prev: any) => ({ ...prev, [key]: value }));
+  };
+
+  useMemo(() => {
+    setForm(entry || {});
+  }, [entry]);
+
+  const validateForm = () => {
+    if (!form.id || !form.type || !form.status || !form.assignedTo) {
+      alert("Please fill all required fields!");
+      return false;
+    }
+    return true;
+  };
 
   return (
-    <div className="flex flex-col md:flex-row gap-6">
-      {/* Small Purok Pie Charts Sidebar */}
-      <div className="md:w-1/4 flex flex-col gap-4">
-        {puroks.map(p => (
-          <div
-            key={p.name}
-            className="flex items-center gap-2 bg-blue-50 p-2 rounded shadow hover:bg-blue-100"
-          >
-            <div className="w-16 h-16">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={[
-                      { name: "Residents", value: p.residents },
-                      { name: "Tenants", value: p.tenants },
-                    ]}
-                    dataKey="value"
-                    nameKey="name"
-                    outerRadius={30}
-                    innerRadius={10}
-                  >
-                    <Cell fill={RES_TEN_COLORS[0]} />
-                    <Cell fill={RES_TEN_COLORS[1]} />
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex flex-col text-sm">
-              <span className="font-semibold">{p.name}</span>
-              <span>Residents: {p.residents}</span>
-              <span>Tenants: {p.tenants}</span>
-            </div>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="p-6 max-w-md">
+        <SheetHeader>
+          <SheetTitle>{form.id ? "Edit Entry" : "New Entry"}</SheetTitle>
+          <SheetDescription>
+            Fill in the details below. {form.id ? "You can update or delete the entry." : ""}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex flex-col gap-3 mt-4">
+          <Input placeholder="ID" value={form.id || ""} onChange={(e) => handleChange("id", e.target.value)} disabled={!!form.id} />
+          <Input type="date" placeholder="Date Reported" value={form.dateReported ? format(new Date(form.dateReported), "yyyy-MM-dd") : ""} onChange={(e) => handleChange("dateReported", new Date(e.target.value))} />
+          <Input placeholder="Type" value={form.type || ""} onChange={(e) => handleChange("type", e.target.value)} disabled={!!form.type} />
+          <Input placeholder="Location" value={form.location || ""} onChange={(e) => handleChange("location", e.target.value)} disabled={!!form.location} />
+          <Input placeholder="Reported By" value={form.reportedBy || ""} onChange={(e) => handleChange("reportedBy", e.target.value)} disabled={!!form.reportedBy} />
+          <Input placeholder="Description" value={form.description || ""} onChange={(e) => handleChange("description", e.target.value)} disabled={!!form.description} />
+          <Input placeholder="Involved Parties" value={form.involvedParties || ""} onChange={(e) => handleChange("involvedParties", e.target.value)} disabled={!!form.involvedParties} />
+          <Input placeholder="Status" value={form.status || ""} onChange={(e) => handleChange("status", e.target.value)} disabled={!!form.status} />
+          <Input placeholder="Assigned Officer" value={form.assignedOfficer || ""} onChange={(e) => handleChange("assignedOfficer", e.target.value)} disabled={!!form.assignedOfficer} />
+          <Input type="date" placeholder="Date Resolved" value={form.dateResolved ? format(new Date(form.dateResolved), "yyyy-MM-dd") : ""} onChange={(e) => handleChange("dateResolved", new Date(e.target.value))} />
+          
+          <div className="flex gap-2 mt-2 justify-end">
+            {form.id && onDelete && (
+              <Button variant="destructive" onClick={() => { onDelete(form.id); onOpenChange(false); }}>Delete</Button>
+            )}
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button variant="default" onClick={() => { if (validateForm()) { onSave(form); onOpenChange(false); } }}>Save</Button>
           </div>
-        ))}
-      </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
 
-      {/* Main Charts */}
-      <div className="flex-1 flex flex-col gap-6">
-        {/* Barangay Population by Purok */}
-        <Card className="bg-white shadow-lg">
-          <CardHeader>
-            <CardTitle>Barangay Population by Purok</CardTitle>
-            <p className="text-sm text-gray-600">Total Population: {totalPopulation}</p>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={barangayPieData}
-                  dataKey="value"
-                  nameKey="name"
-                  outerRadius={100}
-                  innerRadius={50}
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
-                  {barangayPieData.map((_, i) => (
-                    <Cell key={i} fill={PUROK_COLORS[i % PUROK_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Legend verticalAlign="bottom" height={36} />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+//SEARCH BAR
+function SearchBar({ data, onSearch }: { data: any[], onSearch: (filtered: any[]) => void }) {
+  const [query, setQuery] = useState("");
+  const [filterBy, setFilterBy] = useState("all");
+  const [dateFilterType, setDateFilterType] = useState("none");
+  const [dateValue, setDateValue] = useState("");
 
-        {/* Overall Residents vs Tenants */}
-        <Card className="bg-white shadow-lg">
-          <CardHeader>
-            <CardTitle>Overall Residents vs Tenants</CardTitle>
-            <p className="text-sm text-gray-600">Total Population: {totalPopulation}</p>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={overallResTenData}
-                  dataKey="value"
-                  nameKey="name"
-                  outerRadius={100}
-                  innerRadius={50}
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
-                  {RES_TEN_COLORS.map((color, i) => (
-                    <Cell key={i} fill={color} />
-                  ))}
-                </Pie>
-                <Legend verticalAlign="bottom" height={36} />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+  const handleSearch = () => {
+    const terms = query.split(" ").map(t => t.toLowerCase()).filter(Boolean);
+
+    const filtered = data.filter(row => {
+      const textMatch = terms.every(term => Object.keys(row).some(k => String(row[k]).toLowerCase().includes(term)));
+
+      let dateMatch = true;
+      if (dateFilterType !== "none" && dateValue) {
+        const targetDate = new Date(dateValue);
+        const rowDates = Object.keys(row).filter(k => row[k] instanceof Date).map(k => new Date(row[k]));
+        if (rowDates.length > 0) {
+          if (dateFilterType === "before") dateMatch = rowDates.some(d => d < targetDate);
+          if (dateFilterType === "after") dateMatch = rowDates.some(d => d > targetDate);
+          if (dateFilterType === "on") dateMatch = rowDates.some(d => d.toDateString() === targetDate.toDateString());
+        }
+      }
+
+      const columnMatch = filterBy === "all" ? true : String(row[filterBy]).toLowerCase().includes(query.toLowerCase());
+
+      return textMatch && dateMatch && columnMatch;
+    });
+
+    onSearch(filtered);
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2 mb-4 items-center">
+      <Input className="flex-1" placeholder="Search terms (space separated)" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <Select onValueChange={(val) => setFilterBy(val)} value={filterBy}>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Filter column" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Columns</SelectItem>
+          {data.length > 0 && Object.keys(data[0]).map(col => (
+            <SelectItem key={col} value={col}>{col}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select onValueChange={(val) => setDateFilterType(val)} value={dateFilterType}>
+        <SelectTrigger className="w-[120px]">
+          <SelectValue placeholder="Date Filter" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">None</SelectItem>
+          <SelectItem value="before">Before</SelectItem>
+          <SelectItem value="after">After</SelectItem>
+          <SelectItem value="on">On</SelectItem>
+        </SelectContent>
+      </Select>
+      {dateFilterType !== "none" && <Input type="date" value={dateValue} onChange={(e) => setDateValue(e.target.value)} />}
+      <Button variant="default" onClick={handleSearch}>Search</Button>
     </div>
   );
 }
+
+function SearchPopover({
+  data,
+  onSearch,
+  columnHeaders,
+}: {
+  data: any[];
+  onSearch: (filtered: any[]) => void;
+  columnHeaders: Record<string, string>;
+
+}) {
+  const [query, setQuery] = useState("");
+  const [filterBy, setFilterBy] = useState("all");
+  const [dateFilterType, setDateFilterType] = useState("none");
+  const [dateValue, setDateValue] = useState<Date | undefined>();
+
+  const runSearch = () => {
+    const terms = query
+      .split(" ")
+      .map((t) => t.toLowerCase())
+      .filter(Boolean);
+
+    const filtered = data.filter((row) => {
+      const textMatch = terms.every((term) =>
+        Object.keys(row).some((k) =>
+          String(row[k]).toLowerCase().includes(term)
+        )
+      );
+
+      let dateMatch = true;
+
+      if (dateFilterType !== "none" && dateValue) {
+        const rowDates = Object.keys(row)
+          .filter((k) => row[k] instanceof Date || !isNaN(Date.parse(row[k])))
+          .map((k) => new Date(row[k]));
+
+        const target = new Date(dateValue);
+
+        if (dateFilterType === "before")
+          dateMatch = rowDates.some((d) => d < target);
+
+        if (dateFilterType === "after")
+          dateMatch = rowDates.some((d) => d > target);
+
+        if (dateFilterType === "on")
+          dateMatch = rowDates.some(
+            (d) => d.toDateString() === target.toDateString()
+          );
+      }
+
+      const columnMatch =
+        filterBy === "all"
+          ? true
+          : String(row[filterBy]).toLowerCase().includes(query.toLowerCase());
+
+      return textMatch && dateMatch && columnMatch;
+    });
+
+    onSearch(filtered);
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline">
+          <Search className="w-4 h-4 mr-2" />
+          Search
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent className="w-96 p-4 space-y-4">
+        <h3 className="font-semibold text-lg">Advanced Search</h3>
+
+        {/* Keyword search */}
+        <Input
+          placeholder="Search keywords…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+
+        {/* Column filter */}
+        <Select value={filterBy} onValueChange={setFilterBy}>
+          <SelectTrigger>
+            <SelectValue placeholder="Filter by column" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Columns</SelectItem>
+            {data.length > 0 &&
+                Object.keys(data[0]).map((col) => (
+                <SelectItem key={col} value={col}>
+                {columnHeaders[col] || col.replace(/([A-Z])/g, " $1")}
+            </SelectItem>
+             ))}
+          </SelectContent>
+        </Select>
+
+        {/* Date filter type */}
+        <Select
+          value={dateFilterType}
+          onValueChange={(val) => setDateFilterType(val)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Date Filter" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No Date Filter</SelectItem>
+            <SelectItem value="before">Before</SelectItem>
+            <SelectItem value="after">After</SelectItem>
+            <SelectItem value="on">On</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Calendar selection */}
+        {dateFilterType !== "none" && (
+          <Calendar
+            mode="single"
+            selected={dateValue}
+            onSelect={setDateValue}
+            className="rounded-md border"
+          />
+        )}
+
+        <Button className="w-full" onClick={runSearch}>
+          Apply Search
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export default function IncidentsPage() {
+  const [view, setView] = useState<"dashboard" | "table" | "queue" | "kanban">("table");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
+  const [data, setData] = useState(tempData);
+  const [filteredData, setFilteredData] = useState(tempData);
+
+  // Edit the handler to open drawer on history click
+  const handleHistoryClick = (key: string, value: any, row: any) => {
+    setSelectedEntry(row);
+    setDrawerOpen(true);
+  };
+
+  const handleSave = (newEntry: any) => {
+    setData(prev => {
+      const exists = prev.find(d => d.id === newEntry.id);
+      if (exists) return prev.map(d => d.id === newEntry.id ? newEntry : d);
+      return [...prev, newEntry];
+    });
+    setFilteredData(prev => {
+      const exists = prev.find(d => d.id === newEntry.id);
+      if (exists) return prev.map(d => d.id === newEntry.id ? newEntry : d);
+      return [...prev, newEntry];
+    });
+  };
+
+  const handleDelete = (id: string) => {
+    setData(prev => prev.filter(d => d.id !== id));
+    setFilteredData(prev => prev.filter(d => d.id !== id));
+  };
+
+  const formattedData = filteredData.map(d => ({
+    ...d,
+    dateReported: d.dateReported ? format(new Date(d.dateReported), "yyyy-MM-dd") : "",
+    dateResolved: d.dateResolved ? format(new Date(d.dateResolved), "yyyy-MM-dd") : "",
+  }));
+
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* Flex container for buttons, EDIT IF YOU WANT TO ADD MORE VIEWS */}
+      <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+        <div className="flex gap-2">
+          {/* Dashboard / Main Label */}
+          <Button
+            variant={view === "dashboard" ? "default" : "ghost"}
+            onClick={() => setView("dashboard")}
+            className="text-lg font-bold px-4 py-2"
+          >
+            {/* <LayoutDashboard className="w-4 h-4 mr-2" /> */}
+            Reported Incidents
+          </Button>
+
+          {/* Table */}
+          <Button
+            variant={view === "table" ? "default" : "outline"}
+            onClick={() => setView("table")}
+          >
+            <TableIcon className="w-4 h-4 mr-2" />
+            Table
+          </Button>
+
+          {/* Queue */}
+          <Button
+            variant={view === "queue" ? "default" : "outline"}
+            onClick={() => setView("queue")}
+          >
+            <ListChecks className="w-4 h-4 mr-2" />
+            Queue
+          </Button>
+
+          {/* Kanban */}
+          <Button
+            variant={view === "kanban" ? "default" : "outline"}
+            onClick={() => setView("kanban")}
+          >
+            <KanbanSquare className="w-4 h-4 mr-2" />
+            Kanban
+          </Button>
+        </div>
+        <div className="flex gap-2">
+          {/* If you want to add search bars, add this component here */}
+          <SearchPopover 
+          data={data} 
+          onSearch={setFilteredData}
+          columnHeaders={columnHeaders} />
+          <Button variant="default" onClick={() => { setSelectedEntry(null); setDrawerOpen(true); }}>New</Button>
+        </div>
+      </div>      
+
+      {/* This is the page switcher if you want to change between views */}
+      { view === "table" ? (
+        <>
+          <DynamicTable
+            data={formattedData}
+            columnHeaders={columnHeaders} 
+            onRowClick={(row) => {
+            setSelectedEntry(row); 
+            setDrawerOpen(true);
+            }}
+          />
+        </>
+      ) : view === "queue" ? (
+        <>          
+          {/* Please design this for a full queue view please! */}
+          {/* Edit the renderCard part to customize the queue item appearance */}
+          <DynamicQueue
+            data={formattedData}
+            renderCard={(row) => (
+              <div
+                className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-lg transition"
+                onClick={() => handleHistoryClick("issue", row.issue, row)}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold">{row.type}</span>
+                  <span className="text-sm font-medium text-gray-500">{row.status}</span>
+                </div>
+                <div className="text-sm text-gray-700 mb-1">ID: {row.id}</div>
+                <div className="text-sm text-gray-700 mb-1">Assigned Officer: {row.assignedOfficer}</div>
+                {row.issue && <div className="text-sm text-purple-600 underline">{row.issue}</div>}
+                {row.scheduledDate && (
+                  <div className="text-xs text-gray-500">
+                    Date Reported: {format(new Date(row.dateReported), "yyyy-MM-dd")}
+                  </div>
+                )}
+              </div>
+            )}
+          />
+        </>
+      ) : (
+        <DynamicKanban
+          data={formattedData} // pass full data
+          onCardClick={(card) => {
+            setSelectedEntry(card);
+            setDrawerOpen(true);
+          }}
+        />
+      )}
+
+      {/* Always enable this so that the drawer is available, but only opens when you trigger setDrawerOpen as true */}
+      <EntryDrawer open={drawerOpen} onOpenChange={setDrawerOpen} 
+                  entry={selectedEntry} onSave={handleSave} onDelete={handleDelete} />
+    </div>
+  );
+}
+
