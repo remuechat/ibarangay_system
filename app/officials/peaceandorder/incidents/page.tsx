@@ -149,6 +149,7 @@ function EntryDrawer({ open, onOpenChange, incident, onSave }: { open: boolean; 
   return open ? (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
+       style={{ width: '30vw', maxWidth: '30vw' }} 
        className="max-w-md max-h-[90vh] p-6 overflow-y-auto">
     <IncidentForm
       incident={incident}
