@@ -15,6 +15,13 @@ interface KanbanQueueProps {
   onCardUpdate?: (card: any) => void;
 }
 
+const columnColors: Record<string, string> = {
+  Resolved: "bg-green-50",
+  Investigating: "bg-yellow-50",
+  Pending: "bg-orange-50",
+  Closed: "bg-gray-100",
+};
+
 // Helper: Group by status
 const groupByStatus = (data: any[]) => {
   const columns: Record<string, any[]> = {};
@@ -76,56 +83,45 @@ export default function DynamicKanban({ data, onCardClick, onCardUpdate }: Kanba
       <div className="flex gap-4 overflow-x-auto">
         {Object.keys(columns).map((status) => (
           <Droppable droppableId={status} key={status}>
-            {(provided) => (
-              <div
-                {...provided.droppableProps}
-                ref={provided.innerRef}
-                className="flex flex-col bg-gray-100 rounded-lg p-2 min-w-[250px] flex-shrink-0"
-              >
-                <h3 className="font-bold mb-2 capitalize">{status}</h3>
-
-                {columns[status].map((card, index) => (
-                  <Draggable draggableId={card.id} index={index} key={card.id}>
-                    {(provided, snapshot) => (
+                    {(provided) => (
                       <div
+                        {...provided.droppableProps}
                         ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        {...provided.dragHandleProps}
-                        className={`bg-white rounded-lg p-4 mb-2 shadow cursor-pointer transition-transform ${
-                          snapshot.isDragging ? "scale-105 shadow-lg" : ""
-                        }`}
-                        onClick={() => onCardClick?.(card)}
+                        className={`flex flex-col rounded-lg p-2 min-w-[250px] flex-shrink-0 ${columnColors[status]}`}
                       >
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-semibold">{card.type}</span>
-                          <span className="text-sm font-medium text-gray-500">
-                            Priority {card.priority}
-                          </span>
-                        </div>
+                        <h3 className="font-bold mb-2 capitalize">{status}</h3>
 
-                        <div className="text-sm text-gray-700 mb-1">ID: {card.id}</div>
-                        <div className="text-sm text-gray-700 mb-1">Assigned: {card.assignedTo}</div>
+                        {columns[status].map((card, index) => (
+                          <Draggable draggableId={card.id} index={index} key={card.id}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`bg-white rounded-lg p-4 mb-2 shadow cursor-pointer transition-transform ${
+                                  snapshot.isDragging ? "scale-105 shadow-lg" : ""
+                                }`}
+                                onClick={() => onCardClick?.(card)}
+                              >
+                                <div className="flex justify-between items-center mb-2">
+                                  <span className="font-semibold">{card.type}</span>
+                                  <span className="text-sm font-medium text-gray-500">
+                                    Priority {card.priority}
+                                  </span>
+                                </div>
 
-                        {card.issue && (
-                          <div className="text-sm text-purple-600 underline">
-                            {card.issue}
-                          </div>
-                        )}
-
-                        {card.scheduledDate && (
-                          <div className="text-xs text-gray-500">
-                            Scheduled: {format(new Date(card.scheduledDate), "yyyy-MM-dd")}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
+                                <div className="text-sm text-gray-700 mb-1">ID: {card.id}</div>
+                                <div className="text-sm text-gray-700 mb-1">Assigned: {card.assignedTo}</div>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
 
                 {provided.placeholder}
               </div>
             )}
           </Droppable>
+
         ))}
       </div>
     </DragDropContext>

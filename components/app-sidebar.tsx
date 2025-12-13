@@ -32,7 +32,7 @@ import {
 // This is sample data.
 const data = {
   user: {
-    name: "shadcn",
+    name: "juanluna",
     email: "m@example.com",
     avatar: "/avatars/shadcn.jpg",
   },
@@ -60,33 +60,25 @@ const data = {
       icon: LayoutDashboard,
     },
 
-    { title: "Resident Information",
+    { title: "Residents",
       url: "/officials/residentinformation",
       icon: UsersRound,
       isActive: true,
       items: [
         {
-          title: "Profiles",
-          url: "/officials/residentinformation",
-        },
-        {
-          title: "See Purok",
-          url: "/officials/residentinformation",
+          title: "List",
+          url: "/officials/residentinformation/profile",
         },
       ],
     },
     {
-      title: "Service Delivery",
+      title: "Property",
       url: "/officials/service-delivery/maintenance",
       icon: Package,
       items: [
         {
           title: "Maintenance",
           url: "/officials/service-delivery/maintenance",
-        },
-        {
-          title: "Projects",
-          url: "#",
         },
       ],
     },
@@ -96,19 +88,7 @@ const data = {
       icon: ShieldAlert,
       items: [
         {
-          title: "Apprehension",
-          url: "/officials/peaceandorder/apprehension",
-        },
-        {
-          title: "Case Management",
-          url: "/officials/peaceandorder/case-management",
-        },
-        {
-          title: "Disaster Logs",
-          url: "/officials/peaceandorder/disaster-response",
-        },
-        {
-          title: "Incidents",
+          title: "Violations / Incidents",
           url: "/officials/peaceandorder/incidents",
         },
       ],
@@ -137,7 +117,7 @@ const data = {
       ],
     },
   ],
-  projects: [
+ /* projects: [
     {
       name: "Design Engineering",
       url: "#",
@@ -154,8 +134,8 @@ const data = {
       icon: Map,
     },
   ],
+} */
 }
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -164,7 +144,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
+        {/*<NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />
