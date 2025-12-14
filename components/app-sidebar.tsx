@@ -67,12 +67,12 @@ const data = {
       items: [
         {
           title: "List",
-          url: "/officials/residentinformation/profile",
+          url: "/officials/residentinformation/list",
         },
       ],
     },
     {
-      title: "Property",
+      title: "Services",
       url: "/officials/service-delivery/maintenance",
       icon: Package,
       items: [
@@ -80,6 +80,10 @@ const data = {
           title: "Maintenance",
           url: "/officials/service-delivery/maintenance",
         },
+        {
+          title: "Properties",
+          url: "/officials/service-delivery/projects",
+        }
       ],
     },
     {

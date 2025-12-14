@@ -19,6 +19,7 @@ import DynamicCardList from "@/components/dynamicViewers/dynamic-cardlist"
 import IncidentForm from "@/components/incident-form"
 import { Incident, mockIncidents } from "@/app/officials/peaceandorder/incidents/mockIncidents"
 
+
 const columnHeaders: Record<string, string> = {
   id: "ID",
   dateReported: "Date Reported",
@@ -40,22 +41,32 @@ function SearchPopover({
   data,
   onSearch,
   columnHeaders,
+  incidentTypes,
+  statusTypes,
 }: {
   data: Incident[]
   onSearch: (filtered: Incident[]) => void
   columnHeaders: Record<string, string>
+  incidentTypes: string[]
+  statusTypes: string[]
 }) {
   const [query, setQuery] = useState("")
-  const [filterBy, setFilterBy] = useState("all")
+  const [typeFilter, setTypeFilter] = useState<string | "all">("all")
+  const [statusFilter, setStatusFilter] = useState<string | "all">("all")
   const [dateFilterType, setDateFilterType] = useState<"none"|"before"|"after"|"on">("none")
   const [dateValue, setDateValue] = useState<Date>()
 
   const runSearch = () => {
-    const terms = query.split(" ").map(t => t.toLowerCase()).filter(Boolean)
+    const terms = query.toLowerCase().split(" ").filter(Boolean)
     const filtered = data.filter(row => {
-      const textMatch = terms.every(term => 
-        Object.keys(row).some(k => String(row[k as keyof Incident]).toLowerCase().includes(term))
+      const textMatch = terms.every(term =>
+        Object.values(row).some(val =>
+          String(val).toLowerCase().includes(term)
+        )
       )
+
+      const typeMatch = typeFilter === "all" ? true : row.type === typeFilter
+      const statusMatch = statusFilter === "all" ? true : row.status === statusFilter
 
       let dateMatch = true
       if(dateFilterType !== "none" && dateValue) {
@@ -69,11 +80,7 @@ function SearchPopover({
         }
       }
 
-      const columnMatch = filterBy === "all" 
-        ? true 
-        : String(row[filterBy as keyof Incident]).toLowerCase().includes(query.toLowerCase())
-
-      return textMatch && dateMatch && columnMatch
+      return textMatch && typeMatch && statusMatch && dateMatch
     })
 
     onSearch(filtered)
@@ -88,15 +95,36 @@ function SearchPopover({
       </PopoverTrigger>
       <PopoverContent className="w-96 p-4 space-y-4">
         <Input placeholder="Search keywords…" value={query} onChange={e => setQuery(e.target.value)} />
-        <Select value={filterBy} onValueChange={setFilterBy}>
-          <SelectTrigger><SelectValue placeholder="Filter by column" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Columns</SelectItem>
-            {Object.keys(data[0] || {}).map(col => (
-              <SelectItem key={col} value={col}>{columnHeaders[col] || col}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+
+        {/* Incident Type Filter */}
+        <div>
+          <p className="text-sm font-medium mb-1">Incident Type:</p>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {incidentTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Status Filter */}
+        <div>
+          <p className="text-sm font-medium mb-1">Status:</p>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              {statusTypes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Date Filter */}
         <Select value={dateFilterType} onValueChange={val => setDateFilterType(val as any)}>
           <SelectTrigger><SelectValue placeholder="Date Filter" /></SelectTrigger>
           <SelectContent>
@@ -109,6 +137,7 @@ function SearchPopover({
         {dateFilterType !== "none" && (
           <Input type="date" value={dateValue ? format(dateValue,"yyyy-MM-dd") : ""} onChange={e => setDateValue(new Date(e.target.value))} />
         )}
+
         <Button className="w-full" onClick={runSearch}>Apply Search</Button>
       </PopoverContent>
     </Popover>
@@ -120,6 +149,7 @@ function EntryDrawer({ open, onOpenChange, incident, onSave }: { open: boolean; 
   return open ? (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
+       style={{ width: '30vw', maxWidth: '30vw' }} 
        className="max-w-md max-h-[90vh] p-6 overflow-y-auto">
     <IncidentForm
       incident={incident}
@@ -171,7 +201,13 @@ export default function IncidentsPage() {
           </Button>
         </div>
         <div className="flex gap-2">
-          <SearchPopover data={data} onSearch={setFilteredData} columnHeaders={columnHeaders} />
+          <SearchPopover
+            data={data}
+            onSearch={setFilteredData}
+            columnHeaders={columnHeaders}
+            incidentTypes={["Noise Complaint", "Theft", "Disturbance", "Traffic Violation", "Vandalism", "Curfew Violation", "Domestic Dispute", "Other"]}
+            statusTypes={["Pending", "Investigating", "Resolved", "Closed"]}
+          />
           <Button variant="default" onClick={()=>{ setSelectedIncident(null); setDrawerOpen(true) }}>New</Button>
         </div>
       </div>

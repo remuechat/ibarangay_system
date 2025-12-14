@@ -59,18 +59,38 @@ export default function DynamicCardList<T extends UniversalRecord>({
           {item.description && <p className="text-sm mb-4">{item.description}</p>}
 
           {/* Grid info */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            {["location", "purok", "reportedBy", "assignedOfficer"].map((key) => {
-              if (hiddenFields.includes(key)) return null
-              const value = item[key]
-              if (!value) return null
-              return (
-                <div key={key}>
-                  <p className="text-gray-600">{key === "purok" ? "Purok / Zone" : key.charAt(0).toUpperCase() + key.slice(1)}</p>
-                  <p>{value}</p>
-                </div>
-              )
-            })}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+          {/* Location */}
+            {!hiddenFields.includes("location") && item.location && (
+              <div>
+                <p className="text-gray-600">Location</p>
+                <p>{item.location}</p>
+              </div>
+            )}
+
+            {/* Purok / Zone */}
+            {!hiddenFields.includes("purok") && item.purok && (
+              <div>
+                <p className="text-gray-600">Purok / Zone</p>
+                <p>{item.purok}</p>
+              </div>
+            )}
+
+          {/* Reported By */}
+            {!hiddenFields.includes("reportedBy") && item.reportedBy && (
+              <div>
+                <p className="text-gray-600">Reported By</p>
+                <p>{item.reportedBy}</p>
+              </div>
+            )}
+
+            {/* Assigned Officer */}
+            {!hiddenFields.includes("assignedOfficer") && item.assignedOfficer && (
+              <div>
+                <p className="text-gray-600">Assigned Officer</p>
+                <p>{item.assignedOfficer}</p>
+              </div>
+            )}
           </div>
 
           {/* Notes */}
