@@ -1,16 +1,16 @@
 'use client'
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import DynamicTable from '@/components/dynamicViewers/dynamic-table'
 import ResidentForm from '@/components/resident-form'
 import ResidentProfile from "@/app/officials/residentinformation/profile/page"
-import { Resident, mockResidents } from "@/app/officials/residentinformation/mockResidents"
+import { Resident } from "@/amplify/backend/functions/residentsApi/src/Resident"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectTrigger, SelectValue, SelectItem } from "@/components/ui/select"
 import { Button } from '@/components/ui/button'
-import { Search } from 'lucide-react'
+import { Search, Loader2 } from 'lucide-react'
 import { Input } from "@/components/ui/input"
+import { useResidents } from "@/hooks/use-Residents"
 
 /* =====================================================
    SEARCH POPOVER
@@ -119,17 +119,22 @@ export function ResidentSearchPopover({
 }
 
 export default function ResidentsPage() {
-  const [data, setData] = useState<Resident[]>(mockResidents)
+  // Use the backend hook
+  const { residents, loading, add, update, remove, refresh } = useResidents();
+  
   const [selectedResident, setSelectedResident] = useState<Resident | null>(null)
-  const [filteredData,setFilteredData] = useState<Resident[]>(mockResidents)
+  const [filteredData, setFilteredData] = useState<Resident[]>([])
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
   const [editSheetOpen, setEditSheetOpen] = useState(false)
 
-  
+  // Update filtered data when residents change
+  useEffect(() => {
+    setFilteredData(residents);
+  }, [residents]);
 
   // Table columns
   const tableColumns: Record<string, string> = {
-    id: 'ID',
+    residentId: 'ID',
     fullName: 'Name',
     address: 'Address',
     contactNumber: 'Contact No.',
@@ -138,60 +143,86 @@ export default function ResidentsPage() {
   }
 
   // Prepare table data
-  const tableData = data.map((r) => ({
+  const tableData = filteredData.map((r) => ({
     ...r,
     fullName: `${r.firstName} ${r.lastName}`,
     address: `${r.houseNumber} ${r.street}, ${r.city}`,
-    vulnerableTypes: r.vulnerableTypes || [], // keep as array
   }));
 
-  // Save resident (from form)
-  const handleSave = (resident: Resident) => {
-    setData(prev => {
-      const exists = prev.find(r => r.id === resident.id)
-      if (exists) return prev.map(r => r.id === resident.id ? resident : r)
-      return [...prev, resident]
-    })
-    setEditSheetOpen(false)
-    setProfileSheetOpen(false)
-  }
-
-  // Helper for status color
-  const statusColor = (status: string) => {
-    switch (status) {
-      case 'Active': return 'bg-green-100 text-green-700'
-      case 'Inactive': return 'bg-gray-100 text-gray-700'
-      case 'Transferred Out': return 'bg-yellow-100 text-yellow-700'
-      case 'Deceased': return 'bg-red-100 text-red-700'
-      default: return 'bg-gray-100 text-gray-700'
+  // Save resident (from form) - now returns Promise<void>
+  const handleSave = async (resident: Resident): Promise<void> => {
+    try {
+      if (resident.residentId && residents.some(r => r.residentId === resident.residentId)) {
+        // Update existing resident
+        await update(resident.residentId, resident);
+      } else {
+        // Create new resident
+        const { residentId, ...residentData } = resident;
+        await add(residentData);
+      }
+      setEditSheetOpen(false);
+      setProfileSheetOpen(false);
+      setSelectedResident(null);
+    } catch (error) {
+      console.error("Error saving resident:", error);
+      throw error; // Re-throw so form can handle it
     }
   }
 
+  // Delete resident
+  const handleDelete = async (residentId: string) => {
+    if (confirm("Are you sure you want to delete this resident?")) {
+      try {
+        await remove(residentId);
+        setProfileSheetOpen(false);
+        setSelectedResident(null);
+      } catch (error) {
+        console.error("Error deleting resident:", error);
+      }
+    }
+  }
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4">
-    {/* HEADER / TOOLBAR */}
-        <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 rounded-t-lg">
-          <h1 className="text-2xl font-bold">Resident Management</h1>
+      {/* HEADER / TOOLBAR */}
+      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 rounded-t-lg">
+        <h1 className="text-2xl font-bold">Resident Management</h1>
 
-          <div className="flex gap-2">
-            {/* Search / Filter Popover */}
-            <ResidentSearchPopover
-              data={filteredData}
-              onSearch={setFilteredData}
-            />
+        <div className="flex gap-2">
+          {/* Search / Filter Popover */}
+          <ResidentSearchPopover
+            data={residents}
+            onSearch={setFilteredData}
+          />
 
-            {/* New Resident Button */}
-            <Button
-              onClick={() => {
-                setSelectedResident(null); // Clear any selected resident
-                setEditSheetOpen(true);    // Open the ResidentForm sheet
-              }}
-            >
-              New
-            </Button>
-          </div>
+          {/* Refresh Button */}
+          <Button
+            variant="outline"
+            onClick={refresh}
+          >
+            Refresh
+          </Button>
+
+          {/* New Resident Button */}
+          <Button
+            onClick={() => {
+              setSelectedResident(null);
+              setEditSheetOpen(true);
+            }}
+          >
+            New
+          </Button>
         </div>
+      </div>
 
       {/* TABLE */}
       <table className="w-full min-w-full bg-white border border-gray-200 rounded-lg overflow-hidden text-sm">
@@ -205,62 +236,73 @@ export default function ResidentsPage() {
           </tr>
         </thead>
         <tbody>
-          {tableData.map((row) => (
-            <tr
-              key={row.id}
-              className="border-t hover:bg-gray-50 cursor-pointer"
-              onClick={() => { setSelectedResident(row); setProfileSheetOpen(true) }}
-            >
-              {/* ID */}
-              <td className="px-4 py-3 text-gray-700">{row.id}</td>
-
-              {/* Name + Family ID */}
-              <td className="px-4 py-3 text-gray-700">
-                <div>{row.fullName}</div>
-                <div className="text-gray-400 text-xs">{row.familyId}</div>
-              </td>
-
-              {/* Address + Purok */}
-              <td className="px-4 py-3 text-gray-700">
-                <div>{`${row.houseNumber} ${row.street}`}</div>
-                <div className="text-gray-400 text-xs">{row.purok}</div>
-              </td>
-
-              {/* Contact */}
-              <td className="px-4 py-3 text-gray-700">{row.contactNumber}</td>
-
-              {/* Vulnerable Types */}
-              <td className="px-4 py-3 ">
-                {row.vulnerableTypes.length > 0
-                  ? row.vulnerableTypes.map((type: string) => (
-                      <span
-                        key={type}
-                        className="px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-700"
-                      >
-                        {type}
-                      </span>
-                    ))
-                  : (
-                    <span className="text-gray-400 text-xs">
-                      None
-                    </span>
-                  )}
-              </td>
-
-              {/* Status */}
-              <td className="px-4 py-3">
-                <span
-                  className={`px-2 py-1 rounded-full text-xs ${
-                    row.status === 'Active' ? 'bg-green-100 text-green-700' :
-                    row.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
-                    'bg-red-100 text-red-700'
-                  }`}
-                >
-                  {row.status}
-                </span>
+          {tableData.length === 0 ? (
+            <tr>
+              <td colSpan={Object.keys(tableColumns).length} className="px-4 py-8 text-center text-gray-500">
+                No residents found
               </td>
             </tr>
-          ))}
+          ) : (
+            tableData.map((row) => (
+              <tr
+                key={row.residentId}
+                className="border-t hover:bg-gray-50 cursor-pointer"
+                onClick={() => { setSelectedResident(row); setProfileSheetOpen(true) }}
+              >
+                {/* ID */}
+                <td className="px-4 py-3 text-gray-700">{row.residentId}</td>
+
+                {/* Name + Family ID */}
+                <td className="px-4 py-3 text-gray-700">
+                  <div>{row.fullName}</div>
+                  {row.familyId && (
+                    <div className="text-gray-400 text-xs">{row.familyId}</div>
+                  )}
+                </td>
+
+                {/* Address + Purok */}
+                <td className="px-4 py-3 text-gray-700">
+                  <div>{`${row.houseNumber} ${row.street}`}</div>
+                  <div className="text-gray-400 text-xs">{row.purok}</div>
+                </td>
+
+                {/* Contact */}
+                <td className="px-4 py-3 text-gray-700">{row.contactNumber}</td>
+
+                {/* Vulnerable Types */}
+                <td className="px-4 py-3">
+                  {row.vulnerableTypes && row.vulnerableTypes.length > 0
+                    ? row.vulnerableTypes.map((type: string) => (
+                        <span
+                          key={type}
+                          className="px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-700 mr-1"
+                        >
+                          {type}
+                        </span>
+                      ))
+                    : (
+                      <span className="text-gray-400 text-xs">
+                        None
+                      </span>
+                    )}
+                </td>
+
+                {/* Status */}
+                <td className="px-4 py-3">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs ${
+                      row.status === 'Active' ? 'bg-green-100 text-green-700' :
+                      row.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
+                      row.status === 'Transferred Out' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}
+                  >
+                    {row.status}
+                  </span>
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
 
@@ -275,7 +317,10 @@ export default function ResidentsPage() {
             <ResidentProfile
               resident={selectedResident}
               onBack={() => setProfileSheetOpen(false)}
-              onEdit={() => setEditSheetOpen(true)}
+              onEdit={() => {
+                setProfileSheetOpen(false);
+                setEditSheetOpen(true);
+              }}
             />
           )}
         </SheetContent>
@@ -289,12 +334,9 @@ export default function ResidentsPage() {
           style={{ width: '30vw', maxWidth: '30vw' }} 
         >
           <ResidentForm
-            resident={selectedResident}   // null if creating new
+            resident={selectedResident ?? undefined}
             onBack={() => setEditSheetOpen(false)}
-            onSave={(resident) => {
-              // handle saving logic here
-              setEditSheetOpen(false)
-            }}
+            onSave={handleSave}
           />
         </SheetContent>
       </Sheet>

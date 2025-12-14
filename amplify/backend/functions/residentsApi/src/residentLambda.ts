@@ -67,48 +67,64 @@ class ResidentDAO {
 
 // Lambda handler
 export const handler = async (event: any) => {
-  const method = event.httpMethod;
+  try {
+    const method = event.httpMethod;
 
-  // CREATE
-  if (method === "POST") {
-    const data = JSON.parse(event.body);
-    const item = { residentId: uuidv4(), ...data };
-    const result = await ResidentDAO.create(item);
-    return response(200, result);
+    // CORS Preflight
+    if (method === "OPTIONS") {
+      return response(200, {});
+    }
+
+    // CREATE
+    if (method === "POST") {
+      const data = JSON.parse(event.body || "{}");
+      const item = { residentId: uuidv4(), ...data };
+      const result = await ResidentDAO.create(item);
+      return response(200, result);
+    }
+
+    // READ SINGLE
+    if (method === "GET" && event.pathParameters?.id) {
+      const result = await ResidentDAO.get(event.pathParameters.id);
+      return response(200, result);
+    }
+
+    // READ ALL
+    if (method === "GET") {
+      const result = await ResidentDAO.list();
+      return response(200, result);
+    }
+
+    // UPDATE
+    if (method === "PUT") {
+      const id = event.pathParameters?.id;
+      const updates = JSON.parse(event.body || "{}");
+      const result = await ResidentDAO.update(id, updates);
+      return response(200, result);
+    }
+
+    // DELETE
+    if (method === "DELETE") {
+      const id = event.pathParameters?.id;
+      await ResidentDAO.remove(id);
+      return response(200, { deleted: true });
+    }
+
+    return response(400, { error: "Invalid Request" });
+  } catch (err: any) {
+    console.error("Lambda Error:", err);
+    return response(500, { error: err.message || "Internal Server Error" });
   }
-
-  // READ SINGLE
-  if (method === "GET" && event.pathParameters?.id) {
-    const result = await ResidentDAO.get(event.pathParameters.id);
-    return response(200, result);
-  }
-
-  // READ ALL
-  if (method === "GET") {
-    const result = await ResidentDAO.list();
-    return response(200, result);
-  }
-
-  // UPDATE
-  if (method === "PUT") {
-    const id = event.pathParameters.id;
-    const updates = JSON.parse(event.body);
-    const result = await ResidentDAO.update(id, updates);
-    return response(200, result);
-  }
-
-  // DELETE
-  if (method === "DELETE") {
-    const id = event.pathParameters.id;
-    await ResidentDAO.remove(id);
-    return response(200, { deleted: true });
-  }
-
-  return response(400, { error: "Invalid Request" });
 };
 
+// Updated response helper with CORS headers
 const response = (status: number, body: any) => ({
   statusCode: status,
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+    "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS"
+  },
   body: JSON.stringify(body),
 });

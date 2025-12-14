@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 
 import { Table as TableIcon, ListChecks, KanbanSquare, Search, CreditCard } from "lucide-react"
@@ -17,24 +17,8 @@ import DynamicKanban from "@/components/dynamicViewers/dynamic-kanban"
 import DynamicCardList from "@/components/dynamicViewers/dynamic-cardlist"
 
 import IncidentForm from "@/components/incident-form"
-import { Incident, mockIncidents } from "@/app/officials/peaceandorder/incidents/mockIncidents"
-
-
-const columnHeaders: Record<string, string> = {
-  id: "ID",
-  dateReported: "Date Reported",
-  timeReported: "Time Reported",
-  type: "Type",
-  location: "Location",
-  purok: "Purok / Zone",
-  reportedBy: "Reported By",
-  description: "Description",
-  involvedParties: "Involved Parties",
-  status: "Status",
-  assignedOfficer: "Assigned Officer",
-  dateResolved: "Date Resolved",
-  notes: "Notes",
-}
+import { Incident } from "@/amplify/backend/functions/incidentsApi/src/Incident"
+import { useIncidents } from "@/hooks/use-Incidents" // <- your backend hook
 
 // ------------------------- SEARCH POPOVER -------------------------
 function SearchPopover({
@@ -163,23 +147,50 @@ function EntryDrawer({ open, onOpenChange, incident, onSave }: { open: boolean; 
 
 // ------------------------- MAIN PAGE -------------------------
 export default function IncidentsPage() {
+  const { incidents, loading, error, refresh, add, update, remove } = useIncidents()
   const [view, setView] = useState<"table" | "queue" | "kanban" | "cards">("cards")
   const [drawerOpen,setDrawerOpen] = useState(false)
   const [selectedIncident,setSelectedIncident] = useState<Partial<Incident>|null>(null)
-  const [data,setData] = useState<Incident[]>(mockIncidents)
-  const [filteredData,setFilteredData] = useState<Incident[]>(mockIncidents)
-  
-  const handleSave = (incident: Incident) => {
-    setData(prev => {
-      const exists = prev.find(d => d.id === incident.id)
-      if(exists) return prev.map(d => d.id === incident.id ? incident : d)
-      return [...prev, incident]
-    })
-    setFilteredData(prev => {
-      const exists = prev.find(d => d.id === incident.id)
-      if(exists) return prev.map(d => d.id === incident.id ? incident : d)
-      return [...prev, incident]
-    })
+  const [filteredData,setFilteredData] = useState<Incident[]>([])
+
+  useEffect(() => {
+    setFilteredData(incidents)
+  }, [incidents])
+
+  const handleSave = async (incident: Incident) => {
+    try {
+      if(incident.incidentId) {
+        const updated = await update(incident.incidentId, incident)
+      } else {
+        const created = await add(incident)
+      }
+      refresh() // refresh after add/update
+    } catch(err) {
+      console.error(err)
+    }
+    setDrawerOpen(false)
+  }
+
+  // Map incidentId → id for Dynamic components
+  const mappedData = filteredData.map(inc => ({
+    ...inc,
+    id: inc.incidentId
+  }))
+
+  const columnHeaders: Record<string, string> = {
+    id: "ID",
+    dateReported: "Date Reported",
+    timeReported: "Time Reported",
+    type: "Type",
+    location: "Location",
+    purok: "Purok / Zone",
+    reportedBy: "Reported By",
+    description: "Description",
+    involvedParties: "Involved Parties",
+    status: "Status",
+    assignedOfficer: "Assigned Officer",
+    dateResolved: "Date Resolved",
+    notes: "Notes",
   }
 
   return (
@@ -202,7 +213,7 @@ export default function IncidentsPage() {
         </div>
         <div className="flex gap-2">
           <SearchPopover
-            data={data}
+            data={mappedData}
             onSearch={setFilteredData}
             columnHeaders={columnHeaders}
             incidentTypes={["Noise Complaint", "Theft", "Disturbance", "Traffic Violation", "Vandalism", "Curfew Violation", "Domestic Dispute", "Other"]}
@@ -213,19 +224,19 @@ export default function IncidentsPage() {
       </div>
 
       {/* CARD LIST VIEW */}
-        {view==="cards" && (
+      {view==="cards" && (
         <DynamicCardList
-        data={filteredData}
+        data={mappedData}
         titleField="type"
         statusField="status"
-        hiddenFields={["id"]}
+        hiddenFields={["incidentId"]}
         onCardClick={(incident) => setSelectedIncident(incident)}/>
-        )}
+      )}
 
       {/* TABLE VIEW */}
       {view==="table" && (
         <DynamicTable
-          data={filteredData}
+          data={mappedData}
           columnHeaders={columnHeaders}
           onRowClick={(row)=>{ setSelectedIncident(row); setDrawerOpen(true) }}
         />
@@ -234,25 +245,22 @@ export default function IncidentsPage() {
       {/* QUEUE VIEW */}
       {view==="queue" && (
         <DynamicQueue
-          data={filteredData}
-          renderCard={(row)=>(
-            <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-lg transition" onClick={()=>{setSelectedIncident(row); setDrawerOpen(true)}}>
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-semibold">{row.type}</span>
-                <span className="text-sm font-medium text-gray-500">{row.status}</span>
-              </div>
-              <div className="text-sm text-gray-700 mb-1">ID: {row.id}</div>
-              <div className="text-sm text-gray-700 mb-1">Assigned Officer: {row.assignedOfficer}</div>
+          data={mappedData}
+          renderCard={(row)=>(<div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-lg transition" onClick={()=>{setSelectedIncident(row); setDrawerOpen(true)}}>
+            <div className="flex justify-between items-center mb-2">
+              <span className="font-semibold">{row.type}</span>
+              <span className="text-sm font-medium text-gray-500">{row.status}</span>
             </div>
-          )}
+            <div className="text-sm text-gray-700 mb-1">ID: {row.id}</div>
+            <div className="text-sm text-gray-700 mb-1">Assigned Officer: {row.assignedOfficer}</div>
+          </div>)}
         />
       )}
-
 
       {/* KANBAN VIEW */}
       {view==="kanban" && (
         <DynamicKanban
-          data={filteredData}
+          data={mappedData}
           onCardClick={(card)=>{ setSelectedIncident(card); setDrawerOpen(true) }}
         />
       )}
