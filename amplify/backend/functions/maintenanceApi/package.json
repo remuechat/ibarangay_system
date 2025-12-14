@@ -1,0 +1,19 @@
+{
+  "name": "maintenanceapi",
+  "version": "1.0.0",
+  "description": "Maintenance API Lambda",
+  "main": "maintenanceLambdaDAO.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/maintenanceLambdaDAO.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.500.0",
+    "@aws-sdk/lib-dynamodb": "^3.500.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.4.2",
+    "typescript": "^5.2.2"
+  }
+}
