@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { ArrowLeft, Save, QrCode } from 'lucide-react';
+import { Button } from '@components/ui/button'
 import { Resident } from "@/app/officials/residentinformation/mockResidents"
 
 export interface ResidentFormProps {
   resident: Partial<Resident> | null;
   onSave: (resident: Resident) => void;
+
   onBack?: () => void;
 }
 

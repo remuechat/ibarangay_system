@@ -12,6 +12,7 @@ import { Search, Loader2 } from 'lucide-react'
 import { Input } from "@/components/ui/input"
 import { useResidents } from "@/hooks/use-Residents"
 
+
 /* =====================================================
    SEARCH POPOVER
    ===================================================== */
@@ -150,24 +151,30 @@ export default function ResidentsPage() {
   }));
 
   // Save resident (from form) - now returns Promise<void>
-  const handleSave = async (resident: Resident): Promise<void> => {
-    try {
-      if (resident.residentId && residents.some(r => r.residentId === resident.residentId)) {
-        // Update existing resident
-        await update(resident.residentId, resident);
-      } else {
-        // Create new resident
-        const { residentId, ...residentData } = resident;
-        await add(residentData);
+    const handleSave = async (resident: Resident): Promise<void> => {
+      try {
+        if (resident.residentId && residents.some(r => r.residentId === resident.residentId)) {
+          const {
+            residentId,
+            createdAt,
+            updatedAt,
+            ...updatableFields
+          } : any = resident;
+
+          await update(residentId, updatableFields);
+        } else {
+          const { residentId, ...residentData } = resident;
+          await add(residentData);
+        }
+
+        setEditSheetOpen(false);
+        setProfileSheetOpen(false);
+        setSelectedResident(null);
+      } catch (error) {
+        console.error("Error saving resident:", error);
+        throw error;
       }
-      setEditSheetOpen(false);
-      setProfileSheetOpen(false);
-      setSelectedResident(null);
-    } catch (error) {
-      console.error("Error saving resident:", error);
-      throw error; // Re-throw so form can handle it
-    }
-  }
+    };
 
   // Delete resident
   const handleDelete = async (residentId: string) => {
@@ -310,7 +317,7 @@ export default function ResidentsPage() {
       <Sheet open={profileSheetOpen} onOpenChange={setProfileSheetOpen}>
         <SheetContent
           side="right"
-          className="h-full max-h-[95vh] p-6 overflow-y-auto text-sm bg-white shadow-xl"
+          className="h-full p-6 overflow-y-auto text-sm bg-white shadow-xl"
           style={{ width: '50vw', maxWidth: '50vw' }} 
         >
           {selectedResident && (
@@ -321,6 +328,7 @@ export default function ResidentsPage() {
                 setProfileSheetOpen(false);
                 setEditSheetOpen(true);
               }}
+              onDelete={() => handleDelete(selectedResident.residentId)}
             />
           )}
         </SheetContent>
@@ -330,7 +338,7 @@ export default function ResidentsPage() {
       <Sheet open={editSheetOpen} onOpenChange={setEditSheetOpen}>
         <SheetContent
           side="right"
-          className="w-[50vw] max-w-none max-h-[95vh] p-6 overflow-y-auto text-sm"
+          className="w-[50vw] max-w-none p-6 overflow-y-auto text-sm"
           style={{ width: '30vw', maxWidth: '30vw' }} 
         >
           <ResidentForm

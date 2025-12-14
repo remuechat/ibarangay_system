@@ -1,13 +1,16 @@
 import { ArrowLeft, Edit, QrCode, User, Home, Heart, FileText, Calendar } from 'lucide-react';
 import { Resident } from "@/app/officials/residentinformation/mockResidents"
 
+import { Button } from "@/components/ui/button"
+
 interface ResidentProfileProps {
   resident: Resident;
   onBack: () => void;
   onEdit: () => void;
+  onDelete: () => void;
 }
 
-export default function ResidentProfile({ resident, onBack, onEdit }: ResidentProfileProps) {
+export default function ResidentProfile({ resident, onBack, onEdit, onDelete }: ResidentProfileProps) {
   const calculateAge = (birthDate?: string) => {
     if (!birthDate) return 'N/A';
     const today = new Date();
@@ -33,13 +36,16 @@ export default function ResidentProfile({ resident, onBack, onEdit }: ResidentPr
             <p className="text-gray-600">{resident.id || 'N/A'}</p>
           </div>
         </div>
-        <button
-          onClick={onEdit}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          <Edit className="w-5 h-5" />
-          Edit Profile
-        </button>
+        <div className="flex gap-4">
+          <Button variant="destructive" onClick={onDelete}>Delete</Button>
+          <button
+            onClick={onEdit}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            <Edit className="w-5 h-5" />
+            Edit Profile
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
