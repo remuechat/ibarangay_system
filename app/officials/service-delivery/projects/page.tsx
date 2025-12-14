@@ -223,7 +223,7 @@ export default function PropertyPage() {
      ============================ */
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       {/* HEADER / TOOLBAR */}
       <div className="flex items-center justify-between px-6">
         <h1 className="text-2xl font-bold">

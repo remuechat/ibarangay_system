@@ -199,9 +199,9 @@ export default function ResidentsPage() {
   }
 
   return (
-    <div className="p-4">
+    <div className="space-y-6 p-4">
       {/* HEADER / TOOLBAR */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 rounded-t-lg">
+      <div className="flex items-center justify-between px-6 ">
         <h1 className="text-2xl font-bold">Resident Management</h1>
 
         <div className="flex gap-2">
@@ -232,7 +232,8 @@ export default function ResidentsPage() {
       </div>
 
       {/* TABLE */}
-      <table className="w-full min-w-full bg-white border border-gray-200 rounded-lg overflow-hidden text-sm">
+      <div className="rounded-xl border border-gray-200 overflow-hidden shadow-md bg-white"> 
+      <table className="w-full min-w-full text-sm">
         <thead className="bg-gray-50">
           <tr>
             {Object.values(tableColumns).map((header) => (
@@ -312,6 +313,7 @@ export default function ResidentsPage() {
           )}
         </tbody>
       </table>
+      </div>
 
       {/* Profile Sheet */}
       <Sheet open={profileSheetOpen} onOpenChange={setProfileSheetOpen}>
