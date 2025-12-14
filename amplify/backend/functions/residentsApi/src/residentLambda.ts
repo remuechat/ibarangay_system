@@ -65,14 +65,24 @@ class ResidentDAO {
   }
 }
 
-// Lambda handler
+// Lambda handler - Updated for Function URL
 export const handler = async (event: any) => {
   try {
-    const method = event.httpMethod;
+    console.log("Event received:", JSON.stringify(event));
+    
+    // Handle both API Gateway and Function URL formats
+    const method = event.requestContext?.http?.method || event.httpMethod;
+    const rawPath = event.rawPath || event.path || "/";
+    
+    console.log("Method:", method, "Path:", rawPath);
+    
+    // Extract ID from path (e.g., /abc-123-def)
+    const pathMatch = rawPath.match(/\/([a-f0-9\-]+)$/);
+    const id = pathMatch ? pathMatch[1] : null;
 
     // CORS Preflight
     if (method === "OPTIONS") {
-      return response(200, {});
+      return response(200, { message: "CORS OK" });
     }
 
     // CREATE
@@ -84,36 +94,34 @@ export const handler = async (event: any) => {
     }
 
     // READ SINGLE
-    if (method === "GET" && event.pathParameters?.id) {
-      const result = await ResidentDAO.get(event.pathParameters.id);
+    if (method === "GET" && id) {
+      const result = await ResidentDAO.get(id);
       return response(200, result);
     }
 
     // READ ALL
-    if (method === "GET") {
+    if (method === "GET" && !id) {
       const result = await ResidentDAO.list();
       return response(200, result);
     }
 
     // UPDATE
-    if (method === "PUT") {
-      const id = event.pathParameters?.id;
+    if (method === "PUT" && id) {
       const updates = JSON.parse(event.body || "{}");
       const result = await ResidentDAO.update(id, updates);
       return response(200, result);
     }
 
     // DELETE
-    if (method === "DELETE") {
-      const id = event.pathParameters?.id;
+    if (method === "DELETE" && id) {
       await ResidentDAO.remove(id);
       return response(200, { deleted: true });
     }
 
-    return response(400, { error: "Invalid Request" });
+    return response(400, { error: "Invalid Request", method, path: rawPath });
   } catch (err: any) {
     console.error("Lambda Error:", err);
-    return response(500, { error: err.message || "Internal Server Error" });
+    return response(500, { error: err.message || "Internal Server Error", stack: err.stack });
   }
 };
 

@@ -1,5 +1,5 @@
 import { ArrowLeft, Edit, QrCode, User, Home, Heart, FileText, Calendar } from 'lucide-react';
-import { Resident } from "@/amplify/backend/functions/residentsApi/src/Resident"
+import { Resident } from "@/app/officials/residentinformation/mockResidents"
 
 interface ResidentProfileProps {
   resident: Resident;
