@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 
 // Lucide icons
 import { LayoutDashboard, Table as TableIcon, ListChecks, KanbanSquare, Search, Loader2 } from "lucide-react";
@@ -34,6 +35,28 @@ const columnHeaders: Record<string, string> = {
   issue: "Issue",
 };
 
+// Define proper type for the entry
+interface MaintenanceEntry {
+  id?: string;
+  type: string;
+  status: "pending" | "processing" | "resolved";
+  priority: 1 | 2 | 3 | 4 | 5;
+  assignedTo: string;
+  issue?: string;
+  lastServiced?: string;
+  nextServiceDue?: string;
+  scheduledDate?: string;
+}
+
+// Priority descriptions (for UI only)
+const PRIORITY_OPTIONS = [
+  { value: 5, label: "5 - Critical", description: "Urgent attention required" },
+  { value: 4, label: "4 - High", description: "Important, address soon" },
+  { value: 3, label: "3 - Medium", description: "Standard priority" },
+  { value: 2, label: "2 - Low", description: "Address when possible" },
+  { value: 1, label: "1 - Very Low", description: "Minimal impact" },
+];
+
 // Entry Drawer - FIXED
 function EntryDrawer({ 
   open, 
@@ -44,11 +67,21 @@ function EntryDrawer({
 }: { 
   open: boolean; 
   onOpenChange: (val: boolean) => void; 
-  entry: any | null; 
-  onSave: (data: any) => void; 
+  entry: MaintenanceEntry | null; 
+  onSave: (data: MaintenanceEntry) => void; 
   onDelete?: (id: string) => void 
 }) {
-  const [form, setForm] = useState<any>({});
+  const [form, setForm] = useState<MaintenanceEntry>({
+    type: "",
+    status: "pending",
+    priority: 3,
+    assignedTo: "",
+    issue: "",
+    lastServiced: "",
+    nextServiceDue: "",
+    scheduledDate: "",
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Update form when entry changes
   useEffect(() => {
@@ -58,8 +91,8 @@ function EntryDrawer({
       // Reset form for new entry
       setForm({
         type: "",
-        status: "",
-        priority: 1,
+        status: "pending",
+        priority: 3,
         assignedTo: "",
         issue: "",
         lastServiced: "",
@@ -67,27 +100,88 @@ function EntryDrawer({
         scheduledDate: "",
       });
     }
+    setErrors({}); // Clear errors when opening/closing
   }, [entry, open]);
 
-  const handleChange = (key: string, value: any) => {
-    setForm((prev: any) => ({ ...prev, [key]: value }));
+  const handleChange = (key: keyof MaintenanceEntry, value: any) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    // Clear error when user starts typing
+    if (errors[key]) {
+      setErrors(prev => ({ ...prev, [key]: "" }));
+    }
   };
 
-  const validateForm = () => {
-    if (!form.type || !form.status || !form.assignedTo) {
-      alert("Please fill all required fields (Type, Status, Assigned To)!");
-      return false;
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // Required field validations
+    if (!form.type?.trim()) {
+      newErrors.type = "Type is required";
+    } else if (form.type.trim().length < 2) {
+      newErrors.type = "Type must be at least 2 characters";
     }
-    return true;
+
+    if (!form.assignedTo?.trim()) {
+      newErrors.assignedTo = "Assigned To is required";
+    }
+
+    // Priority validation
+    if (form.priority < 1 || form.priority > 5) {
+      newErrors.priority = "Priority must be between 1 and 5";
+    }
+
+    // Date validations
+    if (form.lastServiced) {
+      const lastServicedDate = new Date(form.lastServiced);
+      if (isNaN(lastServicedDate.getTime())) {
+        newErrors.lastServiced = "Invalid date format";
+      }
+    }
+
+    if (form.nextServiceDue) {
+      const nextServiceDueDate = new Date(form.nextServiceDue);
+      if (isNaN(nextServiceDueDate.getTime())) {
+        newErrors.nextServiceDue = "Invalid date format";
+      }
+    }
+
+    if (form.scheduledDate) {
+      const scheduledDate = new Date(form.scheduledDate);
+      if (isNaN(scheduledDate.getTime())) {
+        newErrors.scheduledDate = "Invalid date format";
+      }
+    }
+
+    // Validate that next service due is after last serviced if both are provided
+    if (form.lastServiced && form.nextServiceDue) {
+      const lastServiced = new Date(form.lastServiced);
+      const nextServiceDue = new Date(form.nextServiceDue);
+      if (nextServiceDue <= lastServiced) {
+        newErrors.nextServiceDue = "Next service due must be after last service date";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = () => {
     if (validateForm()) {
+      // Clean the data before saving
+      const dataToSave: MaintenanceEntry = {
+        ...form,
+        type: form.type.trim(),
+        assignedTo: form.assignedTo.trim(),
+        issue: form.issue?.trim() || "",
+        // Only store priority value (1-5), not the description
+        priority: form.priority,
+      };
+
       // Remove id if creating new entry (backend generates it)
-      const dataToSave = entry?.id ? form : { ...form };
       if (!entry?.id) {
         delete dataToSave.id;
       }
+
       onSave(dataToSave);
       onOpenChange(false);
     }
@@ -103,74 +197,146 @@ function EntryDrawer({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-col gap-3 mt-4">
-          <Input 
-            placeholder="Type *" 
-            value={form.type || ""} 
-            onChange={(e) => handleChange("type", e.target.value)} 
-          />
-          
-          <Input 
-            placeholder="Status *" 
-            value={form.status || ""} 
-            onChange={(e) => handleChange("status", e.target.value)} 
-          />
-          
-          <Input 
-            placeholder="Assigned To *" 
-            value={form.assignedTo || ""} 
-            onChange={(e) => handleChange("assignedTo", e.target.value)} 
-          />
-          
-          <Input 
-            placeholder="Issue" 
-            value={form.issue || ""} 
-            onChange={(e) => handleChange("issue", e.target.value)} 
-          />
-          
-          <Input 
-            type="number" 
-            placeholder="Priority (1-5)" 
-            value={form.priority || 1} 
-            onChange={(e) => handleChange("priority", Number(e.target.value))} 
-            min={1}
-            max={5}
-          />
-          
+        <div className="flex flex-col gap-4 mt-4">
+          {/* Type Field */}
           <div>
-            <label className="text-sm text-gray-600">Last Serviced</label>
+            <Label htmlFor="type" className="text-sm font-medium">
+              Type *
+            </Label>
             <Input 
+              id="type"
+              placeholder="Maintenance Type" 
+              value={form.type} 
+              onChange={(e) => handleChange("type", e.target.value)}
+              className={errors.type ? "border-red-500" : ""}
+            />
+            {errors.type && <p className="text-xs text-red-500 mt-1">{errors.type}</p>}
+          </div>
+          
+          {/* Status Field - Dropdown */}
+          <div>
+            <Label htmlFor="status" className="text-sm font-medium">
+              Status *
+            </Label>
+            <Select 
+              value={form.status} 
+              onValueChange={(value: "pending" | "processing" | "resolved") => handleChange("status", value)}
+            >
+              <SelectTrigger id="status" className={errors.status ? "border-red-500" : ""}>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="resolved">Resolved</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Assigned To Field */}
+          <div>
+            <Label htmlFor="assignedTo" className="text-sm font-medium">
+              Assigned To *
+            </Label>
+            <Input 
+              id="assignedTo"
+              placeholder="Person or team responsible" 
+              value={form.assignedTo} 
+              onChange={(e) => handleChange("assignedTo", e.target.value)}
+              className={errors.assignedTo ? "border-red-500" : ""}
+            />
+            {errors.assignedTo && <p className="text-xs text-red-500 mt-1">{errors.assignedTo}</p>}
+          </div>
+          
+          {/* Issue Field */}
+          <div>
+            <Label htmlFor="issue" className="text-sm font-medium">
+              Issue
+            </Label>
+            <Input 
+              id="issue"
+              placeholder="Description of the issue" 
+              value={form.issue || ""} 
+              onChange={(e) => handleChange("issue", e.target.value)}
+            />
+          </div>
+          
+          {/* Priority Field - Enhanced Dropdown */}
+          <div>
+            <Label htmlFor="priority" className="text-sm font-medium">
+              Priority *
+            </Label>
+            <Select 
+              value={form.priority.toString()} 
+              onValueChange={(value) => handleChange("priority", parseInt(value))}
+            >
+              <SelectTrigger id="priority" className={errors.priority ? "border-red-500" : ""}>
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITY_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value.toString()}>
+                    <div className="flex flex-col">
+                      <span>{option.label}</span>
+                      <span className="text-xs text-gray-500">{option.description}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.priority && <p className="text-xs text-red-500 mt-1">{errors.priority}</p>}
+          </div>
+          
+          {/* Date Fields */}
+          <div>
+            <Label htmlFor="lastServiced" className="text-sm font-medium">
+              Last Serviced
+            </Label>
+            <Input 
+              id="lastServiced"
               type="date" 
               value={form.lastServiced ? format(new Date(form.lastServiced), "yyyy-MM-dd") : ""} 
-              onChange={(e) => handleChange("lastServiced", e.target.value)} 
+              onChange={(e) => handleChange("lastServiced", e.target.value)}
+              className={errors.lastServiced ? "border-red-500" : ""}
             />
+            {errors.lastServiced && <p className="text-xs text-red-500 mt-1">{errors.lastServiced}</p>}
           </div>
           
           <div>
-            <label className="text-sm text-gray-600">Next Service Due</label>
+            <Label htmlFor="nextServiceDue" className="text-sm font-medium">
+              Next Service Due
+            </Label>
             <Input 
+              id="nextServiceDue"
               type="date" 
               value={form.nextServiceDue ? format(new Date(form.nextServiceDue), "yyyy-MM-dd") : ""} 
-              onChange={(e) => handleChange("nextServiceDue", e.target.value)} 
+              onChange={(e) => handleChange("nextServiceDue", e.target.value)}
+              className={errors.nextServiceDue ? "border-red-500" : ""}
             />
+            {errors.nextServiceDue && <p className="text-xs text-red-500 mt-1">{errors.nextServiceDue}</p>}
           </div>
           
           <div>
-            <label className="text-sm text-gray-600">Scheduled Date</label>
+            <Label htmlFor="scheduledDate" className="text-sm font-medium">
+              Scheduled Date
+            </Label>
             <Input 
+              id="scheduledDate"
               type="date" 
               value={form.scheduledDate ? format(new Date(form.scheduledDate), "yyyy-MM-dd") : ""} 
-              onChange={(e) => handleChange("scheduledDate", e.target.value)} 
+              onChange={(e) => handleChange("scheduledDate", e.target.value)}
+              className={errors.scheduledDate ? "border-red-500" : ""}
             />
+            {errors.scheduledDate && <p className="text-xs text-red-500 mt-1">{errors.scheduledDate}</p>}
           </div>
 
-          <div className="flex gap-2 mt-2 justify-end">
+          <div className="flex gap-2 mt-4 justify-end">
             {entry?.id && onDelete && (
               <Button 
                 variant="destructive" 
                 onClick={() => { 
                   if (confirm("Are you sure you want to delete this entry?")) {
-                    onDelete(entry.id); 
+                    onDelete(entry.id as any); 
                     onOpenChange(false); 
                   }
                 }}
@@ -277,7 +443,7 @@ function SearchPopover({
 
 // Main Maintenance Page - FIXED
 export default function MaintenancePage() {
-  const [view, setView] = useState<"dashboard" | "table" | "queue" | "kanban">("queue");
+  const [view, setView] = useState<"dashboard" | "table" | "queue">("dashboard");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
 
@@ -372,9 +538,6 @@ export default function MaintenancePage() {
           <Button variant={view === "queue" ? "default" : "outline"} onClick={() => setView("queue")}>
             <ListChecks className="w-4 h-4 mr-2" /> Queue
           </Button>
-          <Button variant={view === "kanban" ? "default" : "outline"} onClick={() => setView("kanban")}>
-            <KanbanSquare className="w-4 h-4 mr-2" /> Kanban
-          </Button>
         </div>
 
         <div className="flex gap-2">
@@ -385,11 +548,14 @@ export default function MaintenancePage() {
       </div>
 
       {view === "table" ? (
-        <DynamicTable
-          data={formattedData}
-          columnHeaders={columnHeaders}
-          onRowClick={(row) => { setSelectedEntry(row as any); setDrawerOpen(true); }}
-        />
+        <div className="">
+          <DynamicTable
+            data={formattedData}
+            columnHeaders={columnHeaders}
+            onRowClick={(row) => { setSelectedEntry(row as any); setDrawerOpen(true); }}
+          />
+        </div>
+ 
       ) : view === "queue" ? (
         <DynamicQueue
           data={queueData}

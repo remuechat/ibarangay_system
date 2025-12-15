@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { listResidents } from '@/lib/backend/residentsApi'
+import { useResidents } from '@/hooks/use-Residents'
 
 interface Resident {
   residentId: string;
@@ -38,7 +38,7 @@ interface Resident {
 }
 
 export default function Dashboard() {
-  const [residents, setResidents] = useState<Resident[]>([])
+  const { residents, refresh } = useResidents()
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -48,8 +48,8 @@ export default function Dashboard() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const data = await listResidents()
-      setResidents(data)
+      refresh();
+      const data = await residents;
     } catch (error) {
       console.error('Error fetching residents:', error)
     } finally {

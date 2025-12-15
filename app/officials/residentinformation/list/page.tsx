@@ -201,10 +201,10 @@ export default function ResidentsPage() {
     <div className="space-y-6 p-4">
       
       {/* HEADER / TOOLBAR */}
-      <div className="flex items-center justify-between px-6 ">
-        <h1 className="text-2xl font-bold">Resident Management</h1>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 gap-4 flex-wrap">
+        <h1 className="text-2xl font-bold flex-shrink-0">Resident Management</h1>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end w-full sm:w-auto">
           {/* Search / Filter Popover */}
           <ResidentSearchPopover
             data={residents}
@@ -344,7 +344,7 @@ export default function ResidentsPage() {
         <SheetContent
           side="right"
           className="w-[50vw] max-w-none p-6 overflow-y-auto text-sm"
-          style={{ width: '30vw', maxWidth: '30vw' }}
+          style={{ width: '60vw', maxWidth: '60vw' }}
         >
           <ResidentForm
             resident={selectedResident ?? undefined}

@@ -24,8 +24,8 @@ export default function DynamicTable({ data, columnHeaders, onRowClick, visibleC
   const columns = visibleColumns || Object.keys(data[0]);
 
   return (
-    <div className="border rounded-xl shadow-md p-2 bg-gray-50">
-      <Table>
+    <div className="border rounded-xl shadow-md p-2 bg-gray-50 overflow-x-auto" style={{ maxWidth: '79%' }}>
+      <Table className="w-full min-w-max" style={{ tableLayout: 'auto' }}>
         <TableHeader>
           <TableRow>
             {columns.map((col) => (

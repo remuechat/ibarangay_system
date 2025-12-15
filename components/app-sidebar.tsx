@@ -89,40 +89,40 @@ const data = {
         },
       ],
     },
-    {
-      title: "Filing",
-      url: "/officials/certificate",
-      icon: ShieldAlert,
-      items: [
-        {
-          title: "Certificates",
-          url: "/officials/certificate",
-        },
-      ],
-    },
-    {
-      title: "Settings",
-      url: "#",
-      icon: Settings2,
-      items: [
-        {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
-        },
-      ],
-    },
+    // {
+    //   title: "Filing",
+    //   url: "/officials/certificate",
+    //   icon: ShieldAlert,
+    //   items: [
+    //     {
+    //       title: "Certificates",
+    //       url: "/officials/certificate",
+    //     },
+    //   ],
+    // },
+    // {
+    //   title: "Settings",
+    //   url: "#",
+    //   icon: Settings2,
+    //   items: [
+    //     {
+    //       title: "General",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Team",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Billing",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Limits",
+    //       url: "#",
+    //     },
+    //   ],
+    // },
   ],
  /* projects: [
     {
