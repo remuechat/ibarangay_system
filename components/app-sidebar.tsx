@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import {
   AudioWaveform,
   Command,
@@ -28,6 +29,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
 
 // This is sample data.
 const data = {
@@ -142,6 +144,8 @@ const data = {
 } */
 }
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const router = useRouter()
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -152,7 +156,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/*<NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <Button variant="outline" 
+          onClick={() => {
+            router.push('/')
+          }}>
+
+          Log out
+
+        </Button>
+        {/* <NavUser user={data.user} /> */}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

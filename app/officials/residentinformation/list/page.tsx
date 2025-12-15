@@ -12,10 +12,9 @@ import { Search, Loader2 } from 'lucide-react'
 import { Input } from "@/components/ui/input"
 import { useResidents } from "@/hooks/use-Residents"
 
-
 /* =====================================================
-   SEARCH POPOVER
-   ===================================================== */
+SEARCH POPOVER
+===================================================== */
 
 export function ResidentSearchPopover({
   data,
@@ -43,13 +42,12 @@ export function ResidentSearchPopover({
       const textMatch = terms.every(term =>
         Object.values(r).some(val => String(val).toLowerCase().includes(term))
       );
-
+      
       const purokMatch = purokFilter === "all" ? true : r.purok === purokFilter;
       const statusMatch = statusFilter === "all" ? true : r.status === statusFilter;
-      const vulMatch =
-        vulFilter === "all"
-          ? true
-          : (r.vulnerableTypes || []).includes(vulFilter);
+      const vulMatch = vulFilter === "all"
+        ? true
+        : (r.vulnerableTypes || []).includes(vulFilter);
 
       return textMatch && purokMatch && statusMatch && vulMatch;
     });
@@ -65,6 +63,7 @@ export function ResidentSearchPopover({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-96 p-4 space-y-4">
+        
         <Input
           placeholder="Search keywords…"
           value={query}
@@ -122,7 +121,7 @@ export function ResidentSearchPopover({
 export default function ResidentsPage() {
   // Use the backend hook
   const { residents, loading, add, update, remove, refresh } = useResidents();
-  
+
   const [selectedResident, setSelectedResident] = useState<Resident | null>(null)
   const [filteredData, setFilteredData] = useState<Resident[]>([])
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
@@ -151,30 +150,30 @@ export default function ResidentsPage() {
   }));
 
   // Save resident (from form) - now returns Promise<void>
-    const handleSave = async (resident: Resident): Promise<void> => {
-      try {
-        if (resident.residentId && residents.some(r => r.residentId === resident.residentId)) {
-          const {
-            residentId,
-            createdAt,
-            updatedAt,
-            ...updatableFields
-          } : any = resident;
+  const handleSave = async (resident: Resident): Promise<void> => {
+    try {
+      if (resident.residentId && residents.some(r => r.residentId === resident.residentId)) {
+        const {
+          residentId,
+          createdAt,
+          updatedAt,
+          ...updatableFields
+        } : any = resident;
 
-          await update(residentId, updatableFields);
-        } else {
-          const { residentId, ...residentData } = resident;
-          await add(residentData);
-        }
-
-        setEditSheetOpen(false);
-        setProfileSheetOpen(false);
-        setSelectedResident(null);
-      } catch (error) {
-        console.error("Error saving resident:", error);
-        throw error;
+        await update(residentId, updatableFields);
+      } else {
+        const { residentId, ...residentData } = resident;
+        await add(residentData);
       }
-    };
+
+      setEditSheetOpen(false);
+      setProfileSheetOpen(false);
+      setSelectedResident(null);
+    } catch (error) {
+      console.error("Error saving resident:", error);
+      throw error;
+    }
+  };
 
   // Delete resident
   const handleDelete = async (residentId: string) => {
@@ -198,24 +197,9 @@ export default function ResidentsPage() {
     );
   }
 
-    // Handle print functionality
-  const handlePrintCertificate = () => {
-    setIsPrintMode(true);
-    
-    // Wait for the sheet to expand, then trigger print
-    setTimeout(() => {
-      window.print();
-      
-      // After printing, return to normal mode
-      setTimeout(() => {
-        setIsPrintMode(false);
-      }, 100);
-    }, 100);
-  };
-
-
   return (
     <div className="space-y-6 p-4">
+      
       {/* HEADER / TOOLBAR */}
       <div className="flex items-center justify-between px-6 ">
         <h1 className="text-2xl font-bold">Resident Management</h1>
@@ -228,10 +212,7 @@ export default function ResidentsPage() {
           />
 
           {/* Refresh Button */}
-          <Button
-            variant="outline"
-            onClick={refresh}
-          >
+          <Button variant="outline" onClick={refresh}>
             Refresh
           </Button>
 
@@ -248,95 +229,101 @@ export default function ResidentsPage() {
       </div>
 
       {/* TABLE */}
-      <div className="rounded-xl border border-gray-200 overflow-hidden shadow-md bg-white"> 
-      <table className="w-full min-w-full text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            {Object.values(tableColumns).map((header) => (
-              <th key={header} className="text-left font-medium text-black px-4 py-3">
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {tableData.length === 0 ? (
+      <div className="rounded-xl border border-gray-200 overflow-hidden shadow-md bg-white">
+        <table className="w-full min-w-full text-sm">
+          <thead className="bg-gray-50">
             <tr>
-              <td colSpan={Object.keys(tableColumns).length} className="px-4 py-8 text-center text-gray-500">
-                No residents found
-              </td>
+              {Object.values(tableColumns).map((header) => (
+                <th key={header} className="text-left font-medium text-black px-4 py-3">
+                  {header}
+                </th>
+              ))}
             </tr>
-          ) : (
-            tableData.map((row) => (
-              <tr
-                key={row.residentId}
-                className="border-t hover:bg-gray-50 cursor-pointer"
-                onClick={() => { setSelectedResident(row); setProfileSheetOpen(true) }}
-              >
-                {/* ID */}
-                <td className="px-4 py-3 text-gray-700">{row.residentId}</td>
-
-                {/* Name + Family ID */}
-                <td className="px-4 py-3 text-gray-700">
-                  <div>{row.fullName}</div>
-                  {row.familyId && (
-                    <div className="text-gray-400 text-xs">{row.familyId}</div>
-                  )}
-                </td>
-
-                {/* Address + Purok */}
-                <td className="px-4 py-3 text-gray-700">
-                  <div>{`${row.houseNumber} ${row.street}`}</div>
-                  <div className="text-gray-400 text-xs">{row.purok}</div>
-                </td>
-
-                {/* Contact */}
-                <td className="px-4 py-3 text-gray-700">{row.contactNumber}</td>
-
-                {/* Vulnerable Types */}
-                <td className="px-4 py-3">
-                  {row.vulnerableTypes && row.vulnerableTypes.length > 0
-                    ? row.vulnerableTypes.map((type: string) => (
-                        <span
-                          key={type}
-                          className="px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-700 mr-1"
-                        >
-                          {type}
-                        </span>
-                      ))
-                    : (
-                      <span className="text-gray-400 text-xs">
-                        None
-                      </span>
-                    )}
-                </td>
-
-                {/* Status */}
-                <td className="px-4 py-3">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${
-                      row.status === 'Active' ? 'bg-green-100 text-green-700' :
-                      row.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
-                      row.status === 'Transferred Out' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    {row.status}
-                  </span>
+          </thead>
+          <tbody>
+            {tableData.length === 0 ? (
+              <tr>
+                <td 
+                  colSpan={Object.keys(tableColumns).length} 
+                  className="px-4 py-8 text-center text-gray-500"
+                >
+                  No residents found
                 </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : (
+              tableData.map((row) => (
+                <tr
+                  key={row.residentId}
+                  className="border-t hover:bg-gray-50 cursor-pointer"
+                  onClick={() => { setSelectedResident(row); setProfileSheetOpen(true) }}
+                >
+                  
+                  {/* ID */}
+                  <td className="px-4 py-3 text-gray-700">{row.residentId}</td>
+
+                  {/* Name + Family ID */}
+                  <td className="px-4 py-3 text-gray-700">
+                    <div>{row.fullName}</div>
+                    {row.familyId && (
+                      <div className="text-gray-400 text-xs">{row.familyId}</div>
+                    )}
+                  </td>
+
+                  {/* Address + Purok */}
+                  <td className="px-4 py-3 text-gray-700">
+                    <div>{`${row.houseNumber} ${row.street}`}</div>
+                    <div className="text-gray-400 text-xs">{row.purok}</div>
+                  </td>
+
+                  {/* Contact */}
+                  <td className="px-4 py-3 text-gray-700">{row.contactNumber}</td>
+
+                  {/* Vulnerable Types */}
+                  <td className="px-4 py-3">
+                    {row.vulnerableTypes && row.vulnerableTypes.length > 0
+                      ? row.vulnerableTypes.map((type: string) => (
+                          <span
+                            key={type}
+                            className="px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-700 mr-1"
+                          >
+                            {type}
+                          </span>
+                        ))
+                      : (
+                          <span className="text-gray-400 text-xs">
+                            None
+                          </span>
+                        )
+                    }
+                  </td>
+
+                  {/* Status */}
+                  <td className="px-4 py-3">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        row.status === 'Active' ? 'bg-green-100 text-green-700' :
+                        row.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
+                        row.status === 'Transferred Out' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      }`}
+                    >
+                      {row.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       {/* Profile Sheet */}
-      <Sheet open={profileSheetOpen} onOpenChange={setProfileSheetOpen}>
+      <Sheet open={profileSheetOpen} onOpenChange={setProfileSheetOpen} >
         <SheetContent
           side="right"
           className="h-full p-6 overflow-y-auto text-sm bg-white shadow-xl"
-          style={{ width: '50vw', maxWidth: '50vw' }} 
+          style={{ width: '100vw', maxWidth: '80vw' }}
+          showClose={false}
         >
           {selectedResident && (
             <ResidentProfile
@@ -357,7 +344,7 @@ export default function ResidentsPage() {
         <SheetContent
           side="right"
           className="w-[50vw] max-w-none p-6 overflow-y-auto text-sm"
-          style={{ width: '30vw', maxWidth: '30vw' }} 
+          style={{ width: '30vw', maxWidth: '30vw' }}
         >
           <ResidentForm
             resident={selectedResident ?? undefined}
@@ -369,4 +356,3 @@ export default function ResidentsPage() {
     </div>
   )
 }
-
