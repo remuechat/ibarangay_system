@@ -40,23 +40,13 @@ const data = {
     {
       name: "iBarangay",
       logo: GalleryVerticalEnd,
-      plan: "Tech System",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
+      plan: "Management System",
     },
   ],
   navMain: [
     { 
       title: "Dashboard",
-      url: "/officials",
+      url: "/officials/dashboard",
       icon: LayoutDashboard,
     },
 
@@ -94,6 +84,17 @@ const data = {
         {
           title: "Violations / Incidents",
           url: "/officials/peaceandorder/incidents",
+        },
+      ],
+    },
+    {
+      title: "Filing",
+      url: "/officials/certificate",
+      icon: ShieldAlert,
+      items: [
+        {
+          title: "Certificates",
+          url: "/officials/certificate",
         },
       ],
     },
