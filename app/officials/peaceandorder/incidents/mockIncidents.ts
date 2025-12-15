@@ -1,5 +1,5 @@
 export interface Incident {
-  id: string;
+  incidentId: string; 
   dateReported: string;
   timeReported: string;
   type: string;
@@ -8,7 +8,7 @@ export interface Incident {
   reportedBy: string;
   description: string;
   involvedParties: string[];
-  status: 'Pending' | 'Investigating' | 'Resolved' | 'Closed';
+  status: string;
   assignedOfficer: string;
   dateResolved?: string;
   notes?: string;

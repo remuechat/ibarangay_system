@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectTrigger, SelectValue, SelectItem } from "@
 import CertificateForm from "@/components/certificate-form"
 import CertificatePreview from "@/app/officials/certificate/preview/page"
 import { Certificate, mockCertificates as initialCertificates } from "@/app/officials/certificate/mockCertificates"
-import { mockOfficials } from "@/app/officials/certificate/mockofficials"
+import { mockOfficials } from "@/app/officials/certificate/mockOfficials"
 
 // --- Search / Filter Popover ---
 export function CertificateSearchPopover({

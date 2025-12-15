@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Incident } from "@/amplify/backend/functions/incidentsApi/src/Incident";
+import { Incident } from "@/app/officials/peaceandorder/incidents/mockIncidents"
 
-const BASE_URL = "https://f43zeymysuwd272xbsectc7xy40dsmps.lambda-url.ap-southeast-2.on.aws/"; 
+const BASE_URL = "https://6bqfk3gtra.execute-api.ap-southeast-2.amazonaws.com/incident/incidents"
 
 export function useIncidents() {
   const [incidents, setIncidents] = useState<Incident[]>([]);

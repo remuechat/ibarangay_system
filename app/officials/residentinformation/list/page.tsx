@@ -198,6 +198,22 @@ export default function ResidentsPage() {
     );
   }
 
+    // Handle print functionality
+  const handlePrintCertificate = () => {
+    setIsPrintMode(true);
+    
+    // Wait for the sheet to expand, then trigger print
+    setTimeout(() => {
+      window.print();
+      
+      // After printing, return to normal mode
+      setTimeout(() => {
+        setIsPrintMode(false);
+      }, 100);
+    }, 100);
+  };
+
+
   return (
     <div className="space-y-6 p-4">
       {/* HEADER / TOOLBAR */}
@@ -353,3 +369,4 @@ export default function ResidentsPage() {
     </div>
   )
 }
+

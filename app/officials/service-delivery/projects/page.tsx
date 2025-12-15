@@ -151,7 +151,7 @@ function EntryDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="max-w-md max-h-[90vh] p-6 overflow-y-auto">
+      <SheetContent className="max-w-md p-6 overflow-y-auto">
         <PropertyForm
           property={property}
           onBack={() => onOpenChange(false)}
