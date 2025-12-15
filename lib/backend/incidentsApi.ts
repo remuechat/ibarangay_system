@@ -1,6 +1,6 @@
 import { Incident } from "@/amplify/backend/functions/incidentsApi/src/Incident"
 
-const BASE_URL = "https://6bqfk3gtra.execute-api.ap-southeast-2.amazonaws.com/incident" // Replace with your actual URL
+const BASE_URL = "https://f43zeymysuwd272xbsectc7xy40dsmps.lambda-url.ap-southeast-2.on.aws/" 
 
 // Fetch all incidents
 export async function listIncidents(): Promise<Incident[]> {

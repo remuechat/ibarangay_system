@@ -2,8 +2,8 @@ import { Resident } from "@/amplify/backend/functions/residentsApi/src/Resident"
 
 const BASE = "https://4pmf2mgc4b3zqze3xzzad2f3540udldl.lambda-url.ap-southeast-2.on.aws";
 
-export async function listResidents(): Promise<Resident[]> {
-  const res = await fetch(BASE);
+export async function listResidents() {
+  const res = await fetch("https://4tr9ypzxs8.execute-api.ap-southeast-2.amazonaws.com/dev");
   return res.json();
 }
 

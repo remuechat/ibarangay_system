@@ -12,11 +12,17 @@ import { Select, SelectContent, SelectTrigger, SelectValue, SelectItem } from "@
 
 import PropertyCard from "@/components/property-card"
 import PropertyForm from "@/components/property-form"
+import BorrowModal from "@/components/borrow-modal"
 
+import { PropertyDisc } from "@/amplify/backend/functions/propertyApi/src/Property"
 import {
-  Property,
-  mockProperties,
-} from "@/app/officials/service-delivery/projects/mockProperty"
+  listProperties,
+  createProperty,
+  updateProperty,
+  deleteProperty,
+  borrowProperty,
+  returnProperty,
+} from "@/lib/backend/propertyApi"
 
 const categories = [
   "Audio Equipment",
@@ -38,8 +44,8 @@ export function PropertySearchPopover({
   data,
   onSearch,
 }: {
-  data: Property[]
-  onSearch: (filtered: Property[]) => void
+  data: PropertyDisc[]
+  onSearch: (filtered: PropertyDisc[]) => void
 }) {
   const [query, setQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string | "all">("all")
@@ -49,7 +55,6 @@ export function PropertySearchPopover({
     const terms = query.toLowerCase().split(" ").filter(Boolean)
 
     const filtered = data.filter((p) => {
-      // keyword search across all fields
       const textMatch = terms.every((term) =>
         Object.values(p).some((val) =>
           String(val).toLowerCase().includes(term)
@@ -77,14 +82,12 @@ export function PropertySearchPopover({
       <PopoverContent className="w-96 p-4 space-y-4">
         <h3 className="font-semibold text-lg">Advanced Search</h3>
 
-        {/* Keyword search */}
         <Input
           placeholder="Search keywords…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
 
-        {/* Category filter */}
         <div>
           <p className="text-sm font-medium mb-1">All Categories:</p>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -102,7 +105,6 @@ export function PropertySearchPopover({
           </Select>
         </div>
 
-        {/* Condition filter */}
         <div>
           <p className="text-sm font-medium mb-1">All Conditions:</p>
           <Select value={conditionFilter} onValueChange={setConditionFilter}>
@@ -129,7 +131,7 @@ export function PropertySearchPopover({
 }
 
 /* =====================================================
-   ENTRY DRAWER (SHEET)
+   ENTRY DRAWER
    ===================================================== */
 
 function EntryDrawer({
@@ -137,11 +139,13 @@ function EntryDrawer({
   onOpenChange,
   property,
   onSave,
+  onDelete,
 }: {
   open: boolean
   onOpenChange: (val: boolean) => void
-  property: Partial<Property> | null
-  onSave: (property: Property) => void
+  property: Partial<PropertyDisc> | null
+  onSave: (property: PropertyDisc) => void
+  onDelete?: (id: string) => void
 }) {
   if (!open) return null
 
@@ -152,6 +156,7 @@ function EntryDrawer({
           property={property}
           onBack={() => onOpenChange(false)}
           onSave={onSave}
+          onDelete={onDelete}
         />
       </SheetContent>
     </Sheet>
@@ -165,99 +170,180 @@ function EntryDrawer({
 export default function PropertyPage() {
   const router = useRouter()
 
-  const [properties, setProperties] =
-    useState<Property[]>(mockProperties)
-
-  const [filteredProperties, setFilteredProperties] =
-    useState<Property[]>(mockProperties)
+  const [properties, setProperties] = useState<PropertyDisc[]>([])
+  const [filteredProperties, setFilteredProperties] = useState<PropertyDisc[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [selectedProperty, setSelectedProperty] =
-    useState<Partial<Property> | null>(null)
+  const [selectedProperty, setSelectedProperty] = useState<Partial<PropertyDisc> | null>(null)
 
-  /* keep filtered list synced */
+  const [borrowModalOpen, setBorrowModalOpen] = useState(false)
+  const [propertyToBorrow, setPropertyToBorrow] = useState<PropertyDisc | null>(null)
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null) // Toast notification
+
+  useEffect(() => {
+    loadProperties()
+  }, [])
+
+  async function loadProperties() {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await listProperties()
+      setProperties(data)
+      setFilteredProperties(data)
+    } catch (err) {
+      console.error("Failed to load properties:", err)
+      setError("Failed to load properties. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     setFilteredProperties(properties)
   }, [properties])
 
-  /* ============================
+  /* ====================
      ACTIONS
-     ============================ */
+  ==================== */
 
-  const handleBorrow = (id: string) => {
-    const borrower = prompt("Who is borrowing this property?")
-    const returnDate = prompt("Return date (YYYY-MM-DD)?")
+  const handleBorrow = (property: PropertyDisc) => {
+    setPropertyToBorrow(property)
+    setBorrowModalOpen(true)
+  }
 
-    if (!borrower || !returnDate) return
+  const handleBorrowSubmit = async (data: {
+    borrowedBy: string
+    quantity: number
+    borrowDate: string
+    returnDate: string
+  }) => {
+    if (!propertyToBorrow) return
 
-    setProperties((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              currentlyBorrowed: true,
-              borrowedBy: borrower,
-              borrowDate: new Date().toISOString().slice(0, 10),
-              returnDate,
-              dateUpdated: new Date().toISOString().slice(0, 10),
-            }
-          : p
+    try {
+      const updated = await borrowProperty(
+        propertyToBorrow.propertyId,
+        data.borrowedBy,
+        data.quantity,
+        data.borrowDate,
+        data.returnDate
       )
-    )
+
+      setProperties(prev =>
+        prev.map(p => p.propertyId === updated.propertyId ? updated : p)
+      )
+
+      setBorrowModalOpen(false)
+      setPropertyToBorrow(null)
+
+      // Toast notification for borrow
+      setToastMessage("Item borrowed successfully!")
+      setTimeout(() => setToastMessage(null), 3000)
+    } catch (err) {
+      console.error("Failed to borrow property:", err)
+      alert("Failed to borrow property. Please try again.")
+    }
+  }
+
+  const handleReturn = async (propertyId: string, borrowId: string) => {
+    try {
+      const updated = await returnProperty(propertyId, borrowId)
+
+      setProperties(prev =>
+        prev.map(p => p.propertyId === updated.propertyId ? updated : p)
+      )
+
+      // Toast notification for return
+      setToastMessage("Item returned successfully!")
+      setTimeout(() => setToastMessage(null), 3000)
+    } catch (err) {
+      console.error("Failed to return property:", err)
+      alert("Failed to return property. Please try again.")
+    }
   }
 
   const handleView = (id: string) => {
     router.push(`/officials/service-delivery/projects/${id}`)
   }
 
-  const handleSave = (saved: Property) => {
-    setProperties((prev) =>
-      prev.some((p) => p.id === saved.id)
-        ? prev.map((p) => (p.id === saved.id ? saved : p))
-        : [...prev, saved]
-    )
+  const handleEdit = (property: PropertyDisc) => {
+    setSelectedProperty(property)
+    setDrawerOpen(true)
   }
 
-  /* ============================
+  const handleSave = async (saved: PropertyDisc) => {
+    try {
+      if (saved.propertyId) {
+        await updateProperty(saved.propertyId, saved)
+        setProperties(prev =>
+          prev.map(p => p.propertyId === saved.propertyId ? saved : p)
+        )
+      } else {
+        const newProperty = await createProperty(saved)
+        setProperties(prev => [...prev, newProperty])
+      }
+      setDrawerOpen(false)
+      setSelectedProperty(null)
+    } catch (err) {
+      console.error("Failed to save property:", err)
+      alert("Failed to save property. Please try again.")
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteProperty(id)
+      setProperties(prev => prev.filter(p => p.propertyId !== id))
+      setDrawerOpen(false)
+      setSelectedProperty(null)
+    } catch (err) {
+      console.error("Failed to delete property:", err)
+      alert("Failed to delete property. Please try again.")
+    }
+  }
+
+  /* ====================
      RENDER
-     ============================ */
+  ==================== */
+
+  if (loading) return <div className="flex items-center justify-center h-96"><p className="text-gray-500">Loading properties...</p></div>
+  if (error) return <div className="flex flex-col items-center justify-center h-96 gap-4"><p className="text-red-600">{error}</p><Button onClick={loadProperties}>Retry</Button></div>
 
   return (
     <div className="space-y-6 p-4">
       {/* HEADER / TOOLBAR */}
       <div className="flex items-center justify-between px-6">
-        <h1 className="text-2xl font-bold">
-          Property & Inventory Management
-        </h1>
+        <h1 className="text-2xl font-bold">Property & Inventory Management</h1>
 
         <div className="flex gap-2">
-          <PropertySearchPopover
-            data={properties}
-            onSearch={setFilteredProperties}
-          />
-
-          <Button
-            onClick={() => {
-              setSelectedProperty(null)
-              setDrawerOpen(true)
-            }}
-          >
-            New
-          </Button>
+          <PropertySearchPopover data={properties} onSearch={setFilteredProperties} />
+          <Button onClick={() => { setSelectedProperty(null); setDrawerOpen(true) }}>New</Button>
         </div>
       </div>
 
       {/* CARDS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 px-6">
-        {filteredProperties.map((property) => (
-          <PropertyCard
-            key={property.id}
-            property={property}
-            onBorrow={() => handleBorrow(property.id)}
-            onView={() => handleView(property.id)}
-          />
-        ))}
-      </div>
+      {filteredProperties.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+          <p>No properties found.</p>
+          <Button variant="link" onClick={() => { setSelectedProperty(null); setDrawerOpen(true) }}>Add your first property</Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 px-6">
+          {filteredProperties.map((property) => (
+            <PropertyCard
+              key={property.propertyId}
+              property={property}
+              onBorrow={() => handleBorrow(property)}
+              onView={() => handleView(property.propertyId)}
+              onEdit={() => handleEdit(property)}
+              onReturn={(borrowId) => handleReturn(property.propertyId, borrowId)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* DRAWER */}
       <EntryDrawer
@@ -265,7 +351,23 @@ export default function PropertyPage() {
         onOpenChange={setDrawerOpen}
         property={selectedProperty}
         onSave={handleSave}
+        onDelete={selectedProperty?.propertyId ? handleDelete : undefined}
       />
+
+      {/* BORROW MODAL */}
+      <BorrowModal
+        property={propertyToBorrow}
+        open={borrowModalOpen}
+        onClose={() => { setBorrowModalOpen(false); setPropertyToBorrow(null) }}
+        onSubmit={handleBorrowSubmit}
+      />
+
+      {/* TOAST NOTIFICATION */}
+      {toastMessage && (
+        <div className="fixed bottom-5 right-5 bg-green-500 text-white px-4 py-2 rounded shadow-lg animate-fade-in-out">
+          {toastMessage}
+        </div>
+      )}
     </div>
   )
 }

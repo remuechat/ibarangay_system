@@ -3,16 +3,18 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeftRight, Info } from "lucide-react"
-import { Property } from "@/app/officials/service-delivery/projects/mockProperty"
+import { ArrowLeftRight, Info, RotateCw } from "lucide-react"
+import { PropertyDisc } from "@/amplify/backend/functions/propertyApi/src/Property"
 
 interface PropertyCardProps {
-  property: Property
+  property: PropertyDisc
   onBorrow?: () => void
   onView?: () => void
+  onEdit?: () => void
+  onReturn?: (borrowId: string) => void
 }
 
-const conditionStyles: Record<Property["condition"], string> = {
+const conditionStyles: Record<PropertyDisc["condition"], string> = {
   Good: "bg-green-100 text-green-700",
   Fair: "bg-yellow-100 text-yellow-700",
   "Needs Repair": "bg-red-100 text-red-700",
@@ -23,8 +25,14 @@ export default function PropertyCard({
   property,
   onBorrow,
   onView,
+  onEdit,
+  onReturn,
 }: PropertyCardProps) {
-  const isBorrowed = property.currentlyBorrowed
+  // Borrow button disabled only if no available units
+  const isBorrowed = property.availableQuantity <= 0
+
+  // Active borrow records
+  const activeBorrows = property.borrowRecords.filter(r => r.status === "borrowed")
 
   return (
     <Card className="flex flex-col justify-between">
@@ -32,13 +40,11 @@ export default function PropertyCard({
         <div className="flex items-start justify-between">
           <div>
             <h3 className="font-semibold leading-tight">{property.name}</h3>
-            <p className="text-xs text-muted-foreground">{property.id}</p>
+            <p className="text-xs text-muted-foreground">{property.propertyId}</p>
           </div>
 
-          {isBorrowed && (
-            <Badge className="bg-orange-100 text-orange-700">
-              Borrowed
-            </Badge>
+          {activeBorrows.length > 0 && (
+            <Badge className="bg-orange-100 text-orange-700">Borrowed</Badge>
           )}
         </div>
       </CardHeader>
@@ -49,7 +55,7 @@ export default function PropertyCard({
           <span>{property.category}</span>
 
           <span className="text-muted-foreground">Quantity</span>
-          <span>{property.quantity}</span>
+          <span>{property.availableQuantity}/{property.quantity}</span>
 
           <span className="text-muted-foreground">Condition</span>
           <Badge className={`w-fit ${conditionStyles[property.condition]}`}>
@@ -60,21 +66,37 @@ export default function PropertyCard({
           <span>{property.location}</span>
         </div>
 
-        {isBorrowed && property.borrowedBy && (
-          <div className="rounded-md bg-orange-50 p-3 text-sm">
-            <p className="font-medium">Borrowed by</p>
-            <p>{property.borrowedBy}</p>
-            {property.returnDate && (
-              <p className="text-xs text-muted-foreground">
-                Return: {property.returnDate}
-              </p>
-            )}
+        {/* List active borrow records */}
+        {activeBorrows.length > 0 && (
+          <div className="space-y-2">
+            {activeBorrows.map(record => (
+              <div
+                key={record.borrowId}
+                className="flex justify-between items-center rounded-md bg-orange-50 p-3 text-sm"
+              >
+                <div>
+                  <p className="font-medium">{record.borrowedBy}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Qty: {record.quantity} | Return: {new Date(record.returnDate).toLocaleDateString()}
+                  </p>
+                </div>
+
+                {onReturn && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onReturn(record.borrowId)}
+                  >
+                    <RotateCw className="mr-2 w-4 h-4" />
+                    Return
+                  </Button>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
-        <p className="text-sm text-muted-foreground">
-          {property.description}
-        </p>
+        <p className="text-sm text-muted-foreground">{property.description}</p>
 
         <div className="flex gap-2 pt-2">
           <Button
@@ -90,6 +112,12 @@ export default function PropertyCard({
             <Info className="mr-2 h-4 w-4" />
             Details
           </Button>
+
+          {onEdit && (
+            <Button variant="secondary" onClick={onEdit}>
+              Edit
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

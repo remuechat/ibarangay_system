@@ -20,7 +20,7 @@ import IncidentForm from "@/components/incident-form"
 import { Incident } from "@/amplify/backend/functions/incidentsApi/src/Incident" // keep only type
 
 // ------------------- BACKEND HOOK -------------------
-const API_BASE_URL = "https://4tr9ypzxs8.execute-api.ap-southeast-2.amazonaws.com/dev/incidents"
+const API_BASE_URL = "https://f43zeymysuwd272xbsectc7xy40dsmps.lambda-url.ap-southeast-2.on.aws/"
 
 function useIncidents() {
   const [incidents, setIncidents] = useState<Incident[]>([])

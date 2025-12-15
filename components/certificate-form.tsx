@@ -1,15 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Save, Search } from 'lucide-react';
-import { Certificate } from "@/app/officials/certificate/mockCertificates"
-import { mockResidents } from "@/app/officials/residentinformation/mockResidents"
+
+interface Certificate {
+  id?: string
+  residentId: string
+  residentName: string
+  familyId: string
+  certificateType: string
+  purpose: string
+  dateRequested: string
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Completed'
+  assignedOfficer: string
+  notes?: string
+  captainName?: string
+  secretaryName?: string
+  captainSignature?: string
+  secretarySignature?: string
+  useDigitalSignature?: boolean
+}
+
+interface Resident {
+  id: string
+  firstName: string
+  lastName: string
+  familyId: string
+  purok: string
+}
+
+interface Official {
+  id: string
+  fullName: string
+  position: string
+  status: string
+  signatureImage?: string
+}
 
 interface CertificateFormProps {
   certificate: Partial<Certificate> | null;
-  onSave: (cerficate: Certificate) => void;
+  onSave: (certificate: Certificate) => void;
   onBack?: () => void;
+  activeOfficials: { captain?: Official; secretary?: Official };
 }
 
-export default function CertificateForm({ certificate, onBack }: CertificateFormProps) {
+export default function CertificateForm({ certificate, onBack, onSave, activeOfficials }: CertificateFormProps) {
   const [formData, setFormData] = useState<Partial<Certificate>>(
     certificate || {
       residentId: '',
@@ -19,21 +52,39 @@ export default function CertificateForm({ certificate, onBack }: CertificateForm
       purpose: '',
       dateRequested: new Date().toISOString().split('T')[0],
       status: 'Pending',
-      assignedOfficer: 'Secretary Ana Reyes',
+      assignedOfficer: activeOfficials.secretary?.fullName || '',
       notes: '',
     }
   );
 
   const [residentSearch, setResidentSearch] = useState('');
   const [showResidentList, setShowResidentList] = useState(false);
+  const [residents, setResidents] = useState<Resident[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const filteredResidents = mockResidents.filter(r => 
+  // Fetch residents from backend
+  useEffect(() => {
+    fetchResidents();
+  }, []);
+
+  const fetchResidents = async () => {
+    try {
+      const response = await fetch('/api/residents');
+      if (!response.ok) throw new Error('Failed to fetch residents');
+      const data = await response.json();
+      setResidents(data);
+    } catch (error) {
+      console.error('Error fetching residents:', error);
+    }
+  };
+
+  const filteredResidents = residents.filter(r => 
     r.firstName.toLowerCase().includes(residentSearch.toLowerCase()) ||
     r.lastName.toLowerCase().includes(residentSearch.toLowerCase()) ||
     r.id.toLowerCase().includes(residentSearch.toLowerCase())
   );
 
-  const handleSelectResident = (resident: typeof mockResidents[0]) => {
+  const handleSelectResident = (resident: Resident) => {
     setFormData({
       ...formData,
       residentId: resident.id,
@@ -44,10 +95,37 @@ export default function CertificateForm({ certificate, onBack }: CertificateForm
     setShowResidentList(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert(certificate ? 'Certificate request updated!' : 'Certificate request submitted!');
-    onBack();
+    setLoading(true);
+
+    try {
+      // Validate required fields
+      if (!formData.residentId || !formData.certificateType || !formData.purpose) {
+        alert('Please fill in all required fields');
+        return;
+      }
+
+      const certificateData: Certificate = {
+        id: formData.id,
+        residentId: formData.residentId!,
+        residentName: formData.residentName!,
+        familyId: formData.familyId!,
+        certificateType: formData.certificateType!,
+        purpose: formData.purpose!,
+        dateRequested: formData.dateRequested!,
+        status: formData.status as 'Pending' | 'Approved' | 'Rejected' | 'Completed',
+        assignedOfficer: formData.assignedOfficer!,
+        notes: formData.notes,
+      };
+
+      await onSave(certificateData);
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      alert('Failed to save certificate. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -57,7 +135,7 @@ export default function CertificateForm({ certificate, onBack }: CertificateForm
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h2 className="text-2xl">{certificate ? 'Edit Request' : 'New Certificate Request'}</h2>
+          <h2 className="text-2xl">{certificate?.id ? 'Edit Request' : 'New Certificate Request'}</h2>
           <p className="text-gray-600">Fill in the request details below</p>
         </div>
       </div>
@@ -84,16 +162,20 @@ export default function CertificateForm({ certificate, onBack }: CertificateForm
                 />
                 {showResidentList && residentSearch && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {filteredResidents.map((resident) => (
-                      <div
-                        key={resident.id}
-                        onClick={() => handleSelectResident(resident)}
-                        className="px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                      >
-                        <p className="text-sm">{`${resident.firstName} ${resident.lastName}`}</p>
-                        <p className="text-xs text-gray-500">{resident.id} - {resident.purok}</p>
-                      </div>
-                    ))}
+                    {filteredResidents.length === 0 ? (
+                      <div className="px-4 py-2 text-sm text-gray-500">No residents found</div>
+                    ) : (
+                      filteredResidents.map((resident) => (
+                        <div
+                          key={resident.id}
+                          onClick={() => handleSelectResident(resident)}
+                          className="px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                        >
+                          <p className="text-sm">{`${resident.firstName} ${resident.lastName}`}</p>
+                          <p className="text-xs text-gray-500">{resident.id} - {resident.purok}</p>
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
@@ -205,15 +287,17 @@ export default function CertificateForm({ certificate, onBack }: CertificateForm
         <div className="flex gap-4">
           <button
             type="submit"
-            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+            disabled={loading}
+            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
           >
             <Save className="w-5 h-5" />
-            {certificate ? 'Update Request' : 'Submit Request'}
+            {loading ? 'Saving...' : (certificate?.id ? 'Update Request' : 'Submit Request')}
           </button>
           <button
             type="button"
             onClick={onBack}
-            className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+            disabled={loading}
+            className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
