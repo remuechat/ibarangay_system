@@ -17,7 +17,7 @@ interface IncidentFormProps {
 
 export default function IncidentForm({ incident, onBack, onSave}: IncidentFormProps) {
   const [formData, setFormData] = useState<Partial<Incident>>({
-    id: incident?.id || '',
+    incidentId: incident?.incidentId, // ✅ Fixed: use incidentId
     dateReported: incident?.dateReported || new Date().toISOString().split('T')[0],
     timeReported: incident?.timeReported || new Date().toTimeString().slice(0, 5),
     type: incident?.type || 'Noise Complaint',
@@ -56,19 +56,6 @@ export default function IncidentForm({ incident, onBack, onSave}: IncidentFormPr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
-    // Validate required fields
-    const required: (keyof Incident)[] = [
-      'id','dateReported','timeReported','type','location',
-      'purok','reportedBy','description','status','assignedOfficer'
-    ]
-    for(const field of required){
-      if(!formData[field]){
-        alert(`Please fill the required field: ${field}`)
-        return
-      }
-    }
-
     // Cast to full Incident
     const completeIncident: Incident = {
       ...formData,
@@ -78,7 +65,6 @@ export default function IncidentForm({ incident, onBack, onSave}: IncidentFormPr
     } as Incident
 
     onSave(completeIncident)
-    alert(incident ? 'Incident updated successfully!' : 'Incident reported successfully!')
     onBack()
   }
 
