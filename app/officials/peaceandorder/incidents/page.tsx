@@ -186,7 +186,7 @@ export default function IncidentsPage() {
   return (
     <div className="p-4 space-y-4">
       {/* VIEW SWITCH */}
-      <div className="flex justify-between flex-wrap gap-2 mb-4">
+      <div className="flex gap-2 mb-4">
         <div className="flex gap-2">
           <Button variant={view === "cards" ? "default" : "outline"} onClick={setCardsView}>
             <CreditCard className="w-4 h-4 mr-2"/> Cards
@@ -195,7 +195,7 @@ export default function IncidentsPage() {
             <TableIcon className="w-4 h-4 mr-2"/> Table
           </Button>
         </div>
-        <div className="flex gap-2">
+        <div className="ml-160 flex gap-2">
           <SearchPopover 
             data={incidents} 
             onSearch={setFilteredData} 

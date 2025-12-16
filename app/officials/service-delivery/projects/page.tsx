@@ -339,7 +339,6 @@ export default function PropertyPage() {
               key={property.propertyId}
               property={property}
               onBorrow={() => handleBorrow(property)}
-              onView={() => handleView(property.propertyId)}
               onEdit={() => handleEdit(property)}
               onReturn={(borrowId) => handleReturn(property.propertyId, borrowId)}
             />

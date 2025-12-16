@@ -3,6 +3,21 @@
 import { useState, useMemo } from "react"
 import { ArrowLeft, Save, Trash2, Search } from "lucide-react"
 import { PropertyDisc } from "@/amplify/backend/functions/propertyApi/src/Property"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
+import { Check, ChevronDown } from "lucide-react"
 
 export interface PropertyFormProps {
   property: Partial<PropertyDisc> | null
@@ -21,27 +36,51 @@ const CATEGORIES = [
   "Power Equipment",
 ]
 
+const conditionOptions = [
+  { label: "Good", value: "Good" },
+  { label: "Fair", value: "Fair" },
+  { label: "Needs Repair", value: "Needs Repair" },
+  { label: "Broken", value: "Broken" },
+]
+
+const propertyFormSchema = z.object({
+  name: z.string().min(1, "Property name is required").max(100, "Name must be less than 100 characters"),
+  category: z.string().min(1, "Category is required"),
+  description: z.string().max(500, "Description must be less than 500 characters").optional(),
+  quantity: z.coerce.number().min(1, "Quantity must be at least 1").max(999, "Quantity must be less than 1000"),
+  availableQuantity: z.coerce.number().min(0, "Available quantity cannot be negative"),
+  condition: z.string().min(1, "Condition is required"),
+  location: z.string().min(1, "Location is required").max(200, "Location must be less than 200 characters"),
+}).refine((data) => data.availableQuantity <= data.quantity, {
+  message: "Available quantity cannot exceed total quantity",
+  path: ["availableQuantity"],
+})
+
+type PropertyFormValues = z.infer<typeof propertyFormSchema>
+
 export default function PropertyForm({
   property,
   onSave,
   onBack,
   onDelete,
 }: PropertyFormProps) {
-  const [formData, setFormData] = useState<Partial<PropertyDisc>>(
-    property || {
-      name: "",
-      category: "",
-      description: "",
-      quantity: 1,
-      availableQuantity: 1,
-      condition: "Good",
-      location: "",
-      borrowRecords: [],
-    }
-  )
+  const form = useForm<PropertyFormValues>({
+    resolver: zodResolver(propertyFormSchema),
+    defaultValues: {
+      name: property?.name || "",
+      category: property?.category || "",
+      description: property?.description || "",
+      quantity: property?.quantity || 1,
+      availableQuantity: property?.availableQuantity || property?.quantity || 1,
+      condition: property?.condition || "Good",
+      location: property?.location || "",
+    },
+    mode: "onChange",
+  })
 
+  const [openCategory, setOpenCategory] = useState(false)
   const [categorySearch, setCategorySearch] = useState("")
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Filter categories based on search
   const filteredCategories = useMemo(() => {
@@ -51,24 +90,27 @@ export default function PropertyForm({
     )
   }, [categorySearch])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: PropertyFormValues) => {
+    setIsSubmitting(true)
+    try {
+      const saved: PropertyDisc = {
+        propertyId: property?.propertyId || "",
+        name: data.name,
+        category: data.category,
+        description: data.description || "",
+        quantity: data.quantity,
+        availableQuantity: data.availableQuantity,
+        condition: data.condition as PropertyDisc["condition"],
+        location: data.location,
+        dateAdded: property?.dateAdded || new Date().toISOString(),
+        dateUpdated: new Date().toISOString(),
+        borrowRecords: property?.borrowRecords || [],
+      }
 
-    const saved: PropertyDisc = {
-      propertyId: property?.propertyId || "",
-      name: formData.name!,
-      category: formData.category!,
-      description: formData.description!,
-      quantity: formData.quantity!,
-      availableQuantity: formData.availableQuantity ?? formData.quantity!,
-      condition: formData.condition!,
-      location: formData.location!,
-      dateAdded: property?.dateAdded || new Date().toISOString(),
-      dateUpdated: new Date().toISOString(),
-      borrowRecords: property?.borrowRecords || [],
+      await onSave(saved)
+    } finally {
+      setIsSubmitting(false)
     }
-
-    onSave(saved)
   }
 
   const handleDelete = () => {
@@ -79,252 +121,307 @@ export default function PropertyForm({
     }
   }
 
-  const handleCategorySelect = (category: string) => {
-    setFormData({ ...formData, category })
-    setCategorySearch("")
-    setShowCategoryDropdown(false)
-  }
-
   return (
     <div className="space-y-6">
       {/* HEADER */}
       <div className="flex items-center gap-4">
-        <button
+        <Button
+          variant="outline"
+          size="icon"
           onClick={onBack}
-          className="p-2 hover:bg-gray-100 rounded-lg "
+          className="h-9 w-9"
         >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
 
         <div className="flex-1">
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
             {property?.propertyId ? "Edit Property" : "Add New Property"}
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-muted-foreground">
             Fill in the property information below
           </p>
         </div>
 
         {property?.propertyId && onDelete && (
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="icon"
             onClick={handleDelete}
-            className="p-2 hover:bg-red-50 text-red-600 rounded-lg"
-            title="Delete Property"
+            className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
           >
-            <Trash2 className="w-5 h-5" />
-          </button>
+            <Trash2 className="h-4 w-4" />
+          </Button>
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* BASIC INFORMATION */}
-        <div className="rounded-lg border shadow-sm p-6
-          bg-white text-gray-800 border-gray-200
-           dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
-          <h3 className="text-lg mb-4 text-gray-900 dark:text-gray-100">Basic Information</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm mb-1 text-gray-700 dark:text-gray-300">Property Name *</label>
-              <input
-                required
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                className="w-full px-4 py-2 rounded-lg border
-                    bg-white text-gray-900 border-gray-300
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                    dark:bg-gray-900 dark:text-gray-100 dark:border-gray-600
-                    dark:focus:ring-blue-400"
-              />
-            </div>
-
-            <div className="relative">
-              <label className="block text-sm mb-1 text-gray-700 dark:text-gray-300">Category *</label>
-              <div className="relative">
-                <input
-                  required
-                  value={formData.category}
-                  onChange={(e) => {
-                    setFormData({ ...formData, category: e.target.value })
-                    setCategorySearch(e.target.value)
-                    setShowCategoryDropdown(true)
-                  }}
-                  onFocus={() => setShowCategoryDropdown(true)}
-                  placeholder="Search or type category..."
-                  className="w-full px-4 py-2 rounded-lg border
-                    bg-white text-gray-900 border-gray-300
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                    dark:bg-gray-900 dark:text-gray-100 dark:border-gray-600
-                    dark:focus:ring-blue-400"
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {/* BASIC INFORMATION */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Basic Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Property Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter property name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-900" />
+
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Category</FormLabel>
+                      <Popover open={openCategory} onOpenChange={setOpenCategory}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value
+                                ? CATEGORIES.find((category) => category === field.value)
+                                : "Select category..."}
+                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput 
+                              placeholder="Search category..." 
+                              value={categorySearch}
+                              onValueChange={setCategorySearch}
+                            />
+                            <CommandEmpty>No category found.</CommandEmpty>
+                            <CommandGroup className="max-h-60 overflow-y-auto">
+                              {filteredCategories.map((category) => (
+                                <CommandItem
+                                  key={category}
+                                  value={category}
+                                  onSelect={() => {
+                                    form.setValue("category", category)
+                                    setCategorySearch("")
+                                    setOpenCategory(false)
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      category === field.value ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {category}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="quantity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quantity</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min={1}
+                          {...field}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value)
+                            field.onChange(value)
+                            // Auto-update available quantity when total quantity changes
+                            if (value >= form.getValues("availableQuantity")) {
+                              form.setValue("availableQuantity", value)
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="condition"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Condition</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select condition" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {conditionOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-              
-              {/* Category Dropdown */}
-              {showCategoryDropdown && filteredCategories.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto dark:bg-gray-900">
-                  {filteredCategories.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => handleCategorySelect(cat)}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-900 transition-colors"
-                    >
-                      {cat}
-                    </button>
-                  ))}
+
+              <FormField
+                control={form.control}
+                name="availableQuantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Available Quantity</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min={0}
+                        max={form.watch("quantity")}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Cannot exceed total quantity ({form.watch("quantity")})
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          {/* LOCATION & DESCRIPTION */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Location & Description</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Storage Room A" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Enter property description"
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {field.value?.length || 0}/500 characters
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          {/* BORROW STATUS */}
+          {property?.borrowRecords && property.borrowRecords.length > 0 && (
+            <Card className="border-orange-200 bg-orange-50">
+              <CardHeader>
+                <CardTitle className="text-orange-800">Active Borrows</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {property.borrowRecords
+                    .filter((record) => record.status === "borrowed")
+                    .map((record) => (
+                      <div
+                        key={record.borrowId}
+                        className="space-y-2 border-b pb-2 last:border-0"
+                      >
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Borrowed by:</span>
+                          <span className="font-medium">{record.borrowedBy}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Quantity:</span>
+                          <Badge variant="outline">{record.quantity}</Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Borrow Date:</span>
+                          <span>{new Date(record.borrowDate).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Expected Return:</span>
+                          <span>{new Date(record.returnDate).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    ))}
                 </div>
-              )}
-            </div>
+              </CardContent>
+            </Card>
+          )}
 
-            <div>
-              <label className="block text-sm mb-1 text-gray-700 dark:text-gray-300">Quantity *</label>
-              <input
-                type="number"
-                min={1}
-                required
-                value={formData.quantity}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    quantity: Number(e.target.value),
-                    availableQuantity: Number(e.target.value), // Auto-update available
-                  })
-                }
-                className="w-full px-4 py-2 rounded-lg border
-                    bg-white text-gray-900 border-gray-300
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                    dark:bg-gray-900 dark:text-gray-100 dark:border-gray-600
-                    dark:focus:ring-blue-400"
-              />
-            </div>
+          {/* ACTION BUTTONS */}
+          <div className="flex gap-4">
+            <Button
+              type="submit"
+              disabled={isSubmitting || !form.formState.isValid}
+              className="flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {isSubmitting 
+                ? "Saving..." 
+                : property?.propertyId 
+                  ? "Update Property" 
+                  : "Add Property"
+              }
+            </Button>
 
-            <div>
-              <label className="block text-sm mb-1 text-gray-700 dark:text-gray-300">Condition *</label>
-              <select
-                required
-                value={formData.condition}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    condition: e.target.value as PropertyDisc["condition"],
-                  })
-                }
-                className="w-full px-4 py-2 rounded-lg border
-                    bg-white text-gray-900 border-gray-300
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                    dark:bg-gray-900 dark:text-gray-100 dark:border-gray-600
-                    dark:focus:ring-blue-400"
-              >
-                <option value="Good">Good</option>
-                <option value="Fair">Fair</option>
-                <option value="Needs Repair">Needs Repair</option>
-                <option value="Broken">Broken</option>
-              </select>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onBack}
+            >
+              Cancel
+            </Button>
           </div>
-        </div>
-
-        {/* LOCATION & DESCRIPTION */}
-        <div className="rounded-lg border shadow-sm p-6
-          bg-white text-gray-800 border-gray-200
-           dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
-          <h3 className="text-lg mb-4 text-gray-900 dark:text-gray-100">Location & Description</h3>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm mb-1 text-gray-700 dark:text-gray-300">Location *</label>
-              <input
-                required
-                value={formData.location}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
-                className="w-full px-4 py-2 rounded-lg border
-                    bg-white text-gray-900 border-gray-300
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                    dark:bg-gray-900 dark:text-gray-100 dark:border-gray-600
-                    dark:focus:ring-blue-400"
-                placeholder="e.g. Storage Room A"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm mb-1 text-gray-700 dark:text-gray-300">Description</label>
-              <textarea
-                rows={4}
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                className="w-full px-4 py-2 rounded-lg border
-                    bg-white text-gray-900 border-gray-300
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                    dark:bg-gray-900 dark:text-gray-100 dark:border-gray-600
-                    dark:focus:ring-blue-400"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* BORROW STATUS */}
-        {property?.borrowRecords && property.borrowRecords.length > 0 && (
-          <div className="rounded-lg border shadow-sm p-6
-          bg-white text-gray-800 border-gray-200
-           dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
-            <h3 className="text-lg mb-4 text-orange-800 dark:text-gray-300">Active Borrows</h3>
-            <div className="space-y-3">
-              {property.borrowRecords
-                .filter((record) => record.status === "borrowed")
-                .map((record) => (
-                  <div
-                    key={record.borrowId}
-                    className="space-y-2 text-sm border-b pb-2 last:border-0"
-                  >
-                    <div className="flex justify-between">
-                      <span className="text-gray-600  dark:text-gray-300">Borrowed by:</span>
-                      <span className="font-medium">{record.borrowedBy}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-300">Quantity:</span>
-                      <span>{record.quantity}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-300">Borrow Date:</span>
-                      <span>{new Date(record.borrowDate).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-300">Expected Return:</span>
-                      <span>{new Date(record.returnDate).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* ACTION BUTTONS */}
-        <div className="flex gap-4">
-          <button
-            type="submit"
-            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
-          >
-            <Save className="w-5 h-5" />
-            {property?.propertyId ? "Update Property" : "Add Property"}
-          </button>
-
-          <button
-            type="button"
-            onClick={onBack}
-            className="px-6 py-3 border rounded-lg hover:bg-gray-50 dark:hover:text-black"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
+        </form>
+      </Form>
     </div>
   )
 }
