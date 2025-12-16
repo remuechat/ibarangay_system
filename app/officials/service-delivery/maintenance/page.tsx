@@ -1,17 +1,17 @@
 'use client'
 
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search, Plus, TableIcon, ListChecks, KanbanSquare } from "lucide-react";
 import { format } from "date-fns";
-import { Search } from "lucide-react"
-import { Plus } from "lucide-react";
 
 // SHADCN UI
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectTrigger, SelectValue, SelectItem } from "@/components/ui/select"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
 
 // Dynamic views
 import DynamicTable from "@/components/dynamicViewers/dynamic-table";
@@ -20,19 +20,9 @@ import DynamicKanban from "@/components/dynamicViewers/dynamic-kanban";
 
 // Hooks
 import { useMaintenance } from "@/hooks/use-maintenance";
-import { MaintenanceEntry } from "@/amplify/backend/functions/maintenanceApi/src/Maintenance";
-
-const columnHeaders: Record<string, string> = {
-  id: "ID",
-  type: "Type",
-  status: "Status",
-  priority: "Priority",
-  assignedTo: "Assigned To",
-  lastServiced: "Last Serviced",
-  nextServiceDue: "Next Service Due",
-  scheduledDate: "Scheduled Date",
-  issue: "Issue",
-};
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 // Define proper type for the entry
 interface MaintenanceEntry {
@@ -47,6 +37,29 @@ interface MaintenanceEntry {
   scheduledDate?: string;
 }
 
+const maintenanceFormSchema = z.object({
+  type: z.string().min(1, "Type is required").min(2, "Type must be at least 2 characters"),
+  status: z.enum(["pending", "processing", "resolved"]),
+  priority: z.number().min(1).max(5, "Priority must be between 1 and 5"),
+  assignedTo: z.string().min(1, "Assigned To is required"),
+  issue: z.string().optional(),
+  lastServiced: z.string().optional(),
+  nextServiceDue: z.string().optional(),
+  scheduledDate: z.string().optional(),
+}).refine((data) => {
+  if (data.lastServiced && data.nextServiceDue) {
+    const lastServiced = new Date(data.lastServiced);
+    const nextServiceDue = new Date(data.nextServiceDue);
+    return nextServiceDue > lastServiced;
+  }
+  return true;
+}, {
+  message: "Next service due must be after last service date",
+  path: ["nextServiceDue"],
+})
+
+type MaintenanceFormValues = z.infer<typeof maintenanceFormSchema>
+
 // Priority descriptions (for UI only)
 const PRIORITY_OPTIONS = [
   { value: 5, label: "5 - Critical", description: "Urgent attention required" },
@@ -56,39 +69,46 @@ const PRIORITY_OPTIONS = [
   { value: 1, label: "1 - Very Low", description: "Minimal impact" },
 ];
 
-// Entry Drawer - FIXED
-function EntryDrawer({ 
-  open, 
-  onOpenChange, 
+// Maintenance Form Component
+function MaintenanceForm({ 
   entry, 
   onSave, 
+  onBack, 
   onDelete 
 }: { 
-  open: boolean; 
-  onOpenChange: (val: boolean) => void; 
   entry: MaintenanceEntry | null; 
   onSave: (data: MaintenanceEntry) => void; 
+  onBack: () => void;
   onDelete?: (id: string) => void 
 }) {
-  const [form, setForm] = useState<MaintenanceEntry>({
-    type: "",
-    status: "pending",
-    priority: 3,
-    assignedTo: "",
-    issue: "",
-    lastServiced: "",
-    nextServiceDue: "",
-    scheduledDate: "",
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const form = useForm<MaintenanceFormValues>({
+    resolver: zodResolver(maintenanceFormSchema),
+    defaultValues: {
+      type: "",
+      status: "pending",
+      priority: 3,
+      assignedTo: "",
+      issue: "",
+      lastServiced: "",
+      nextServiceDue: "",
+      scheduledDate: "",
+    },
+  })
 
-  // Update form when entry changes
   useEffect(() => {
     if (entry) {
-      setForm(entry);
+      form.reset({
+        type: entry.type || "",
+        status: entry.status || "pending",
+        priority: entry.priority || 3,
+        assignedTo: entry.assignedTo || "",
+        issue: entry.issue || "",
+        lastServiced: entry.lastServiced || "",
+        nextServiceDue: entry.nextServiceDue || "",
+        scheduledDate: entry.scheduledDate || "",
+      });
     } else {
-      // Reset form for new entry
-      setForm({
+      form.reset({
         type: "",
         status: "pending",
         priority: 3,
@@ -99,95 +119,27 @@ function EntryDrawer({
         scheduledDate: "",
       });
     }
-    setErrors({}); // Clear errors when opening/closing
-  }, [entry, open]);
+  }, [entry, form])
 
-  const handleChange = (key: keyof MaintenanceEntry, value: any) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    // Clear error when user starts typing
-    if (errors[key]) {
-      setErrors(prev => ({ ...prev, [key]: "" }));
-    }
-  };
+  const onSubmit = (data: MaintenanceFormValues) => {
+    const dataToSave: MaintenanceEntry = {
+      ...data,
+      type: data.type.trim(),
+      assignedTo: data.assignedTo.trim(),
+      issue: data.issue?.trim() || "",
+    };
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    // Required field validations
-    if (!form.type?.trim()) {
-      newErrors.type = "Type is required";
-    } else if (form.type.trim().length < 2) {
-      newErrors.type = "Type must be at least 2 characters";
+    if (!entry?.id) {
+      delete dataToSave.id;
+    } else {
+      dataToSave.id = entry.id;
     }
 
-    if (!form.assignedTo?.trim()) {
-      newErrors.assignedTo = "Assigned To is required";
-    }
-
-    // Priority validation
-    if (form.priority < 1 || form.priority > 5) {
-      newErrors.priority = "Priority must be between 1 and 5";
-    }
-
-    // Date validations
-    if (form.lastServiced) {
-      const lastServicedDate = new Date(form.lastServiced);
-      if (isNaN(lastServicedDate.getTime())) {
-        newErrors.lastServiced = "Invalid date format";
-      }
-    }
-
-    if (form.nextServiceDue) {
-      const nextServiceDueDate = new Date(form.nextServiceDue);
-      if (isNaN(nextServiceDueDate.getTime())) {
-        newErrors.nextServiceDue = "Invalid date format";
-      }
-    }
-
-    if (form.scheduledDate) {
-      const scheduledDate = new Date(form.scheduledDate);
-      if (isNaN(scheduledDate.getTime())) {
-        newErrors.scheduledDate = "Invalid date format";
-      }
-    }
-
-    // Validate that next service due is after last serviced if both are provided
-    if (form.lastServiced && form.nextServiceDue) {
-      const lastServiced = new Date(form.lastServiced);
-      const nextServiceDue = new Date(form.nextServiceDue);
-      if (nextServiceDue <= lastServiced) {
-        newErrors.nextServiceDue = "Next service due must be after last service date";
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSave = () => {
-    if (validateForm()) {
-      // Clean the data before saving
-      const dataToSave: MaintenanceEntry = {
-        ...form,
-        type: form.type.trim(),
-        assignedTo: form.assignedTo.trim(),
-        issue: form.issue?.trim() || "",
-        // Only store priority value (1-5), not the description
-        priority: form.priority,
-      };
-
-      // Remove id if creating new entry (backend generates it)
-      if (!entry?.id) {
-        delete dataToSave.id;
-      }
-
-      onSave(dataToSave);
-      onOpenChange(false);
-    }
-  };
+    onSave(dataToSave);
+  }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={true} onOpenChange={onBack}>
       <SheetContent className="p-6 max-w-md overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{entry?.id ? "Edit Entry" : "New Entry"}</SheetTitle>
@@ -196,7 +148,7 @@ function EntryDrawer({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-col gap-4 mt-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4 mt-4">
           {/* Type Field */}
           <div>
             <Label htmlFor="type" className="text-sm font-medium">
@@ -205,23 +157,23 @@ function EntryDrawer({
             <Input 
               id="type"
               placeholder="Maintenance Type" 
-              value={form.type} 
-              onChange={(e) => handleChange("type", e.target.value)}
-              className={errors.type ? "border-red-500" : ""}
+              {...form.register("type")}
             />
-            {errors.type && <p className="text-xs text-red-500 mt-1">{errors.type}</p>}
+            {form.formState.errors.type && (
+              <p className="text-xs text-red-500 mt-1">{form.formState.errors.type.message}</p>
+            )}
           </div>
           
-          {/* Status Field - Dropdown */}
+          {/* Status Field */}
           <div>
             <Label htmlFor="status" className="text-sm font-medium">
               Status *
             </Label>
             <Select 
-              value={form.status} 
-              onValueChange={(value: "pending" | "processing" | "resolved") => handleChange("status", value)}
+              value={form.watch("status")} 
+              onValueChange={(value: "pending" | "processing" | "resolved") => form.setValue("status", value)}
             >
-              <SelectTrigger id="status" className={errors.status ? "border-red-500" : ""}>
+              <SelectTrigger id="status">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
@@ -240,11 +192,11 @@ function EntryDrawer({
             <Input 
               id="assignedTo"
               placeholder="Person or team responsible" 
-              value={form.assignedTo} 
-              onChange={(e) => handleChange("assignedTo", e.target.value)}
-              className={errors.assignedTo ? "border-red-500" : ""}
+              {...form.register("assignedTo")}
             />
-            {errors.assignedTo && <p className="text-xs text-red-500 mt-1">{errors.assignedTo}</p>}
+            {form.formState.errors.assignedTo && (
+              <p className="text-xs text-red-500 mt-1">{form.formState.errors.assignedTo.message}</p>
+            )}
           </div>
           
           {/* Issue Field */}
@@ -255,21 +207,20 @@ function EntryDrawer({
             <Input 
               id="issue"
               placeholder="Description of the issue" 
-              value={form.issue || ""} 
-              onChange={(e) => handleChange("issue", e.target.value)}
+              {...form.register("issue")}
             />
           </div>
           
-          {/* Priority Field - Enhanced Dropdown */}
+          {/* Priority Field */}
           <div>
             <Label htmlFor="priority" className="text-sm font-medium">
               Priority *
             </Label>
             <Select 
-              value={form.priority.toString()} 
-              onValueChange={(value) => handleChange("priority", parseInt(value))}
+              value={form.watch("priority").toString()} 
+              onValueChange={(value) => form.setValue("priority", parseInt(value))}
             >
-              <SelectTrigger id="priority" className={errors.priority ? "border-red-500" : ""}>
+              <SelectTrigger id="priority">
                 <SelectValue placeholder="Select priority" />
               </SelectTrigger>
               <SelectContent>
@@ -277,13 +228,15 @@ function EntryDrawer({
                   <SelectItem key={option.value} value={option.value.toString()}>
                     <div className="flex flex-col">
                       <span>{option.label}</span>
-                      <span className="text-xs text-gray-500">{option.description}</span>
+                      <span className="text-xs text-muted-foreground">{option.description}</span>
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.priority && <p className="text-xs text-red-500 mt-1">{errors.priority}</p>}
+            {form.formState.errors.priority && (
+              <p className="text-xs text-red-500 mt-1">{form.formState.errors.priority.message}</p>
+            )}
           </div>
           
           {/* Date Fields */}
@@ -294,11 +247,8 @@ function EntryDrawer({
             <Input 
               id="lastServiced"
               type="date" 
-              value={form.lastServiced ? format(new Date(form.lastServiced), "yyyy-MM-dd") : ""} 
-              onChange={(e) => handleChange("lastServiced", e.target.value)}
-              className={errors.lastServiced ? "border-red-500" : ""}
+              {...form.register("lastServiced")}
             />
-            {errors.lastServiced && <p className="text-xs text-red-500 mt-1">{errors.lastServiced}</p>}
           </div>
           
           <div>
@@ -308,11 +258,11 @@ function EntryDrawer({
             <Input 
               id="nextServiceDue"
               type="date" 
-              value={form.nextServiceDue ? format(new Date(form.nextServiceDue), "yyyy-MM-dd") : ""} 
-              onChange={(e) => handleChange("nextServiceDue", e.target.value)}
-              className={errors.nextServiceDue ? "border-red-500" : ""}
+              {...form.register("nextServiceDue")}
             />
-            {errors.nextServiceDue && <p className="text-xs text-red-500 mt-1">{errors.nextServiceDue}</p>}
+            {form.formState.errors.nextServiceDue && (
+              <p className="text-xs text-red-500 mt-1">{form.formState.errors.nextServiceDue.message}</p>
+            )}
           </div>
           
           <div>
@@ -322,31 +272,31 @@ function EntryDrawer({
             <Input 
               id="scheduledDate"
               type="date" 
-              value={form.scheduledDate ? format(new Date(form.scheduledDate), "yyyy-MM-dd") : ""} 
-              onChange={(e) => handleChange("scheduledDate", e.target.value)}
-              className={errors.scheduledDate ? "border-red-500" : ""}
+              {...form.register("scheduledDate")}
             />
-            {errors.scheduledDate && <p className="text-xs text-red-500 mt-1">{errors.scheduledDate}</p>}
           </div>
 
           <div className="flex gap-2 mt-4 justify-end">
             {entry?.id && onDelete && (
               <Button 
+                type="button"
                 variant="destructive" 
                 onClick={() => { 
                   if (confirm("Are you sure you want to delete this entry?")) {
-                    onDelete(entry.id as any); 
-                    onOpenChange(false); 
+                    onDelete(entry.id as string); 
+                    onBack(); 
                   }
                 }}
               >
                 Delete
               </Button>
             )}
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button variant="default" onClick={handleSave}>Save</Button>
+            <Button type="button" variant="outline" onClick={onBack}>Cancel</Button>
+            <Button type="submit" variant="default">
+              Save
+            </Button>
           </div>
-        </div>
+        </form>
       </SheetContent>
     </Sheet>
   );
@@ -440,9 +390,9 @@ function MaintenanceSearchPopover({
 }
 
 export default function MaintenancePage() {
-  const [view, setView] = useState<"dashboard" | "table" | "queue">("dashboard");
+  const [view, setView] = useState<"table" | "queue" | "kanban">("table");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<MaintenanceEntry | null>(null);
   const [filteredData, setFilteredData] = useState<any[]>([]);
 
   // CRUD hook
@@ -475,16 +425,17 @@ export default function MaintenancePage() {
 
   const queueData = [...formattedData].sort(
     (a, b) =>
-    (a.priority ?? 0) - (b.priority ?? 0) ||
+    (b.priority ?? 0) - (a.priority ?? 0) || // Higher priority first
     String(a.id).localeCompare(String(b.id))
   );
 
   // Handlers
-  const handleSave = async (entry: any) => {
+  const handleSave = async (entry: MaintenanceEntry) => {
     try {
       if (entry.id) await update(entry.id, entry);
       else await add(entry);
       await refresh();
+      setDrawerOpen(false);
     } catch (err) {
       console.error(err);
       alert("Failed to save entry.");
@@ -495,6 +446,7 @@ export default function MaintenancePage() {
     try {
       await remove(id);
       await refresh();
+      setDrawerOpen(false);
     } catch (err) {
       console.error(err);
       alert("Failed to delete entry.");
@@ -523,17 +475,19 @@ export default function MaintenancePage() {
   return (
     <div className="space-y-6 p-4">
       {/* HEADER */}
-      <div className="flex items-center justify-between px-6">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Maintenance and Repairs</h1>
         <div className="flex gap-2">
           <MaintenanceSearchPopover data={entries} onSearch={setFilteredData} columnHeaders={columnHeaders} />
           <Button variant="outline" onClick={refresh}>Refresh</Button>
-          <Button variant="default" onClick={() => { setSelectedEntry(null); setDrawerOpen(true); }}><Plus className="w-4 h-4 mr-2" /> New
+          <Button variant="default" onClick={() => { setSelectedEntry(null); setDrawerOpen(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> New
           </Button>
         </div>
       </div>
-      {/* SWITCH BUTTONS */}
-      <div className="flex items-center justify-start px-6 gap-2">
+
+      {/* VIEW SWITCHER */}
+      <div className="flex gap-2">
         <Button variant={view === "table" ? "default" : "outline"} onClick={() => setView("table")}>
           <TableIcon className="w-4 h-4 mr-2" /> List
         </Button>
@@ -556,32 +510,24 @@ export default function MaintenancePage() {
       {view === "queue" && (
         <DynamicQueue
           data={queueData}
-          renderCard={(row) => {
-            const { theme } = useTheme();
-
-            return (
-              <div
-                className={`
-                  rounded-lg shadow p-4 cursor-pointer transition 
-                  hover:shadow-lg
-                  ${theme === "dark" ? "bg-gray-800 text-gray-200" : "bg-gray-50 text-gray-800"}
-                `}
-                onClick={() => { setSelectedEntry(row); setDrawerOpen(true); }}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-semibold">{row.type}</span>
-                  <span className="text-sm font-medium text-gray-500">Priority {row.priority}</span>
-                </div>
-                <div className="text-sm mb-1">ID: {row.id}</div>
-                <div className="text-sm mb-1">Status: {row.status}</div>
-                <div className="text-sm mb-1">Assigned: {row.assignedTo}</div>
-                {row.issue && <div className="text-sm text-purple-600 mt-2">{row.issue}</div>}
-                {row.scheduledDate && (
-                  <div className="text-xs text-gray-500 mt-1">Scheduled: {row.scheduledDate}</div>
-                )}
+          renderCard={(row) => (
+            <div
+              className="rounded-lg shadow p-4 cursor-pointer transition hover:shadow-lg bg-card text-card-foreground"
+              onClick={() => { setSelectedEntry(row); setDrawerOpen(true); }}
+            >
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-semibold">{row.type}</span>
+                <span className="text-sm font-medium text-muted-foreground">Priority {row.priority}</span>
               </div>
-            );
-          }}
+              <div className="text-sm mb-1">ID: {row.id}</div>
+              <div className="text-sm mb-1">Status: {row.status}</div>
+              <div className="text-sm mb-1">Assigned: {row.assignedTo}</div>
+              {row.issue && <div className="text-sm text-primary mt-2">{row.issue}</div>}
+              {row.scheduledDate && (
+                <div className="text-xs text-muted-foreground mt-1">Scheduled: {row.scheduledDate}</div>
+              )}
+            </div>
+          )}
         />
       )}
       {view === "kanban" && (
@@ -591,17 +537,15 @@ export default function MaintenancePage() {
         />
       )}
 
-      {/* ENTRY SHEET */}
-      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <SheetContent className="p-6 max-w-md overflow-y-auto">
-          <MaintenanceForm
-            entry={selectedEntry}
-            onSave={handleSave}
-            onBack={() => setDrawerOpen(false)}
-            onDelete={handleDelete}
-          />
-        </SheetContent>
-      </Sheet>
+      {/* ENTRY FORM */}
+      {drawerOpen && (
+        <MaintenanceForm
+          entry={selectedEntry}
+          onSave={handleSave}
+          onBack={() => setDrawerOpen(false)}
+          onDelete={handleDelete}
+        />
+      )}
     </div>
   );
 }

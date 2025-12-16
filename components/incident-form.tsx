@@ -13,9 +13,10 @@ interface IncidentFormProps {
   incident: Partial<Incident> | null
   onBack: () => void
   onSave: (incident: Incident) => void
+  onDelete?: (incidentId: string) => void
 }
 
-export default function IncidentForm({ incident, onBack, onSave}: IncidentFormProps) {
+export default function IncidentForm({ incident, onBack, onSave, onDelete }: IncidentFormProps) {
   const [formData, setFormData] = useState<Partial<Incident>>({
     incidentId: incident?.incidentId, // ✅ Fixed: use incidentId
     dateReported: incident?.dateReported || new Date().toISOString().split('T')[0],
@@ -68,6 +69,25 @@ export default function IncidentForm({ incident, onBack, onSave}: IncidentFormPr
     onBack()
   }
 
+  const handleDelete = () => {
+    if (incident?.incidentId && onDelete) {
+      onDelete(incident.incidentId)
+      onBack()
+    }
+  }
+
+  const handleSave = () => {
+    const completeIncident: Incident = {
+      ...formData,
+      involvedParties: formData.involvedParties || [],
+      dateResolved: formData.dateResolved,
+      notes: formData.notes || '',
+    } as Incident
+
+    onSave(completeIncident)
+    onBack()
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -82,10 +102,8 @@ export default function IncidentForm({ incident, onBack, onSave}: IncidentFormPr
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Incident Info */}
-        <div className="rounded-lg border shadow-sm p-6
-          bg-white text-gray-800 border-gray-200
-           dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
-          <h3 className="text-lg mb-4  font-semibold text-gray-900 dark:text-gray-100">Incident Information</h3>
+        <div className="rounded-lg border shadow-sm p-6 bg-white text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
+          <h3 className="text-lg mb-4 font-semibold text-gray-900 dark:text-gray-100">Incident Information</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -201,9 +219,7 @@ export default function IncidentForm({ incident, onBack, onSave}: IncidentFormPr
         </div>
 
         {/* Involved Parties */}
-        <div className="rounded-lg border shadow-sm p-6
-          bg-white text-gray-800 border-gray-200
-           dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
+        <div className="rounded-lg border shadow-sm p-6 bg-white text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
           <h3 className="text-lg mb-4 font-semibold text-gray-900 dark:text-gray-100">Involved Parties</h3>
 
           <div className="flex gap-2 mb-2">
@@ -228,9 +244,7 @@ export default function IncidentForm({ incident, onBack, onSave}: IncidentFormPr
         </div>
 
         {/* Status & Notes */}
-        <div className="rounded-lg border shadow-sm p-6
-          bg-white text-gray-800 border-gray-200
-           dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
+        <div className="rounded-lg border shadow-sm p-6 bg-white text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
           <h3 className="text-lg mb-4 font-semibold text-gray-900 dark:text-gray-100">Status & Notes</h3>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -266,11 +280,20 @@ export default function IncidentForm({ incident, onBack, onSave}: IncidentFormPr
         </div>
 
         <div className="flex gap-4">
-          <Button type="submit" variant="default" className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
+          <Button type="submit" variant="default" 
+          onClick={handleSubmit}
+          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
             <Save className="w-5 h-5" />
             {incident ? 'Update Incident' : 'Report Incident'}
           </Button>
-          <Button type="button" variant="outline" onClick={onBack} className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 ">
+            <Button 
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+            >
+              Delete
+            </Button>
+          <Button type="button" variant="outline" onClick={onBack} className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50">
             Cancel
           </Button>
         </div>
