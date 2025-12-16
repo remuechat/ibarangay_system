@@ -9,7 +9,6 @@ import { PropertyDisc } from "@/amplify/backend/functions/propertyApi/src/Proper
 interface PropertyCardProps {
   property: PropertyDisc
   onBorrow?: () => void
-  onView?: () => void
   onEdit?: () => void
   onReturn?: (borrowId: string) => void
 }
@@ -24,7 +23,6 @@ const conditionStyles: Record<PropertyDisc["condition"], string> = {
 export default function PropertyCard({
   property,
   onBorrow,
-  onView,
   onEdit,
   onReturn,
 }: PropertyCardProps) {
@@ -106,11 +104,6 @@ export default function PropertyCard({
           >
             <ArrowLeftRight className="mr-2 h-4 w-4" />
             {isBorrowed ? "Unavailable" : "Borrow"}
-          </Button>
-
-          <Button variant="outline" onClick={onView}>
-            <Info className="mr-2 h-4 w-4" />
-            Details
           </Button>
 
           {onEdit && (
