@@ -64,56 +64,27 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         { title: "Violations / Incidents", url: "/officials/peaceandorder/incidents" },
       ],
     },
-    // {
-    //   title: "Filing",
-    //   url: "/officials/certificate",
-    //   icon: ShieldAlert,
-    //   items: [
-    //     {
-    //       title: "Certificates",
-    //       url: "/officials/certificate",
-    //     },
-    //   ],
-    // },
-    // {
-    //   title: "Settings",
-    //   url: "#",
-    //   icon: Settings2,
-    //   items: [
-    //     {
-    //       title: "General",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Team",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Billing",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Limits",
-    //       url: "#",
-    //     },
-    //   ],
-    // },
-  ],
- /* projects: [
     {
-      name: "Design Engineering",
-      url: "#",
-      icon: Frame,
+      title: "Filing",
+      url: "/officials/certificate",
+      icon: File,
+      items: [
+        { title: "Certificates", url: "/officials/certificate" },
+      ],
     },
+  ]
+
+  const user = {
+    name: "jennmiku",
+    email: "jennmiku@gmail.com",
+    avatar: "/avatars/shadcn.jpg",
+  }
+
+  const teams = [
     {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
+      name: "iBarangay",
+      logo: GalleryVerticalEnd,
+      plan: "Management System",
     },
   ]
 
