@@ -20,8 +20,44 @@ import IncidentForm from "@/components/incident-form"
 import { Incident } from "@/app/officials/peaceandorder/incidents/mockIncidents"
 import { useIncidents } from "@/hooks/use-Incidents"
 
+
+const COLUMN_HEADERS: Record<string, string> = {
+  id: "ID",
+  dateReported: "Date Reported",
+  timeReported: "Time Reported",
+  type: "Type",
+  location: "Location",
+  purok: "Purok / Zone",
+  reportedBy: "Reported By",
+  description: "Description",
+  involvedParties: "Involved Parties",
+  status: "Status",
+  assignedOfficer: "Assigned Officer",
+  dateResolved: "Date Resolved",
+  notes: "Notes",
+}
+
+const INCIDENT_TYPES = [
+  "Noise Complaint",
+  "Theft",
+  "Disturbance",
+  "Traffic Violation",
+  "Vandalism",
+  "Curfew Violation",
+  "Domestic Dispute",
+  "Other",
+]
+
+const STATUS_TYPES = [
+  "Pending",
+  "Investigating",
+  "Resolved",
+  "Closed",
+]
+
+
 // ------------------------- SEARCH POPOVER -------------------------
-const SearchPopover = memo(function SearchPopover({ 
+function IncidentSearchPopover ({ 
   data, 
   onSearch, 
   columnHeaders, 
@@ -107,7 +143,7 @@ const SearchPopover = memo(function SearchPopover({
       </PopoverContent>
     </Popover>
   )
-})
+}
 
 // ------------------------- ENTRY DRAWER -------------------------
 const EntryDrawer = memo(function EntryDrawer({ 
@@ -183,10 +219,27 @@ export default function IncidentsPage() {
   const setQueueView = useCallback(() => setView("queue"), [])
   const setKanbanView = useCallback(() => setView("kanban"), [])
 
+  
+
   return (
-    <div className="p-4 space-y-4">
+    <div className="space-y-6 p-4">
+      {/* HEADER */}
+            <div className="flex items-center justify-between px-6">
+              <h1 className="text-2xl font-bold">Violations & Incidents</h1>
+              <div className="flex gap-2">
+                <IncidentSearchPopover
+                    data={incidents}
+                    onSearch={setFilteredData}
+                    columnHeaders={COLUMN_HEADERS}
+                    incidentTypes={INCIDENT_TYPES}
+                    statusTypes={STATUS_TYPES}
+                  />
+                <Button variant="default" onClick={() => { setSelectedIncident(null); setDrawerOpen(true); }}><Plus className="w-4 h-4 mr-2" /> New
+                </Button>
+              </div>
+            </div>
       {/* VIEW SWITCH */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 px-6">
         <div className="flex gap-2">
           <Button variant={view === "cards" ? "default" : "outline"} onClick={setCardsView}>
             <CreditCard className="w-4 h-4 mr-2"/> Cards
@@ -194,31 +247,6 @@ export default function IncidentsPage() {
           <Button variant={view === "table" ? "default" : "outline"} onClick={setTableView}>
             <TableIcon className="w-4 h-4 mr-2"/> Table
           </Button>
-        </div>
-        <div className="ml-160 flex gap-2">
-          <SearchPopover 
-            data={incidents} 
-            onSearch={setFilteredData} 
-            columnHeaders={{
-              id: "ID",
-              dateReported: "Date Reported",
-              timeReported: "Time Reported",
-              type: "Type",
-              location: "Location",
-              purok: "Purok / Zone",
-              reportedBy: "Reported By",
-              description: "Description",
-              involvedParties: "Involved Parties",
-              status: "Status",
-              assignedOfficer: "Assigned Officer",
-              dateResolved: "Date Resolved",
-              notes: "Notes"
-            }}
-            incidentTypes={["Noise Complaint", "Theft", "Disturbance", "Traffic Violation", "Vandalism", "Curfew Violation", "Domestic Dispute", "Other"]}
-            statusTypes={["Pending", "Investigating", "Resolved", "Closed"]}
-          />
-          <Button variant="default" onClick={()=>{ setSelectedIncident(null); setDrawerOpen(true) }}><Plus className="w-4 h-4 mr-2" /> New
-                    </Button>
         </div>
       </div>
 
