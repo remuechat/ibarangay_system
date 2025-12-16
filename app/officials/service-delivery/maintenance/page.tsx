@@ -1,17 +1,17 @@
 'use client'
 
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search, Plus, TableIcon, ListChecks, KanbanSquare } from "lucide-react";
 import { format } from "date-fns";
-import { Search } from "lucide-react"
-import { Plus } from "lucide-react";
 
 // SHADCN UI
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectTrigger, SelectValue, SelectItem } from "@/components/ui/select"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
 
 // Dynamic views
 import DynamicTable from "@/components/dynamicViewers/dynamic-table";
@@ -121,7 +121,7 @@ function MaintenanceSearchPopover({
 export default function MaintenancePage() {
   const [view, setView] = useState<"table" | "queue" | "kanban">("queue");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<MaintenanceEntry | null>(null);
   const [filteredData, setFilteredData] = useState<any[]>([]);
 
   // CRUD hook
@@ -154,16 +154,17 @@ export default function MaintenancePage() {
 
   const queueData = [...formattedData].sort(
     (a, b) =>
-    (a.priority ?? 0) - (b.priority ?? 0) ||
+    (b.priority ?? 0) - (a.priority ?? 0) || // Higher priority first
     String(a.id).localeCompare(String(b.id))
   );
 
   // Handlers
-  const handleSave = async (entry: any) => {
+  const handleSave = async (entry: MaintenanceEntry) => {
     try {
       if (entry.id) await update(entry.id, entry);
       else await add(entry);
       await refresh();
+      setDrawerOpen(false);
     } catch (err) {
       console.error(err);
       alert("Failed to save entry.");
@@ -174,6 +175,7 @@ export default function MaintenancePage() {
     try {
       await remove(id);
       await refresh();
+      setDrawerOpen(false);
     } catch (err) {
       console.error(err);
       alert("Failed to delete entry.");
@@ -202,17 +204,19 @@ export default function MaintenancePage() {
   return (
     <div className="space-y-6 p-4">
       {/* HEADER */}
-      <div className="flex items-center justify-between px-6">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Maintenance and Repairs</h1>
         <div className="flex gap-2">
           <MaintenanceSearchPopover data={entries} onSearch={setFilteredData} columnHeaders={columnHeaders} />
           <Button variant="outline" onClick={refresh}>Refresh</Button>
-          <Button variant="default" onClick={() => { setSelectedEntry(null); setDrawerOpen(true); }}><Plus className="w-4 h-4 mr-2" /> New
+          <Button variant="default" onClick={() => { setSelectedEntry(null); setDrawerOpen(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> New
           </Button>
         </div>
       </div>
-      {/* SWITCH BUTTONS */}
-      <div className="flex items-center justify-start px-6 gap-2">
+
+      {/* VIEW SWITCHER */}
+      <div className="flex gap-2">
         <Button variant={view === "table" ? "default" : "outline"} onClick={() => setView("table")}>
           <TableIcon className="w-4 h-4 mr-2" /> List
         </Button>
@@ -235,32 +239,24 @@ export default function MaintenancePage() {
       {view === "queue" && (
         <DynamicQueue
           data={queueData}
-          renderCard={(row) => {
-            const { theme } = useTheme();
-
-            return (
-              <div
-                className={`
-                  rounded-lg shadow p-4 cursor-pointer transition 
-                  hover:shadow-lg
-                  ${theme === "dark" ? "bg-gray-800 text-gray-200" : "bg-gray-50 text-gray-800"}
-                `}
-                onClick={() => { setSelectedEntry(row); setDrawerOpen(true); }}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-semibold">{row.type}</span>
-                  <span className="text-sm font-medium text-gray-500">Priority {row.priority}</span>
-                </div>
-                <div className="text-sm mb-1">ID: {row.id}</div>
-                <div className="text-sm mb-1">Status: {row.status}</div>
-                <div className="text-sm mb-1">Assigned: {row.assignedTo}</div>
-                {row.issue && <div className="text-sm text-purple-600 mt-2">{row.issue}</div>}
-                {row.scheduledDate && (
-                  <div className="text-xs text-gray-500 mt-1">Scheduled: {row.scheduledDate}</div>
-                )}
+          renderCard={(row) => (
+            <div
+              className="rounded-lg shadow p-4 cursor-pointer transition hover:shadow-lg bg-card text-card-foreground"
+              onClick={() => { setSelectedEntry(row); setDrawerOpen(true); }}
+            >
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-semibold">{row.type}</span>
+                <span className="text-sm font-medium text-muted-foreground">Priority {row.priority}</span>
               </div>
-            );
-          }}
+              <div className="text-sm mb-1">ID: {row.id}</div>
+              <div className="text-sm mb-1">Status: {row.status}</div>
+              <div className="text-sm mb-1">Assigned: {row.assignedTo}</div>
+              {row.issue && <div className="text-sm text-primary mt-2">{row.issue}</div>}
+              {row.scheduledDate && (
+                <div className="text-xs text-muted-foreground mt-1">Scheduled: {row.scheduledDate}</div>
+              )}
+            </div>
+          )}
         />
       )}
       {view === "kanban" && (
@@ -270,17 +266,15 @@ export default function MaintenancePage() {
         />
       )}
 
-      {/* ENTRY SHEET */}
-      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <SheetContent className="p-6 max-w-md overflow-y-auto">
-          <MaintenanceForm
-            entry={selectedEntry}
-            onSave={handleSave}
-            onBack={() => setDrawerOpen(false)}
-            onDelete={handleDelete}
-          />
-        </SheetContent>
-      </Sheet>
+      {/* ENTRY FORM */}
+      {drawerOpen && (
+        <MaintenanceForm
+          entry={selectedEntry}
+          onSave={handleSave}
+          onBack={() => setDrawerOpen(false)}
+          onDelete={handleDelete}
+        />
+      )}
     </div>
   );
 }

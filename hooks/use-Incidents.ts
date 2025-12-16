@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Incident } from "@/app/officials/peaceandorder/incidents/mockIncidents"
 
-const BASE_URL = "https://6bqfk3gtra.execute-api.ap-southeast-2.amazonaws.com/incident/incidents"
+const BASE_URL = "https://6bqfk3gtra.execute-api.ap-southeast-2.amazonaws.com/incident/incidents/";
 
 export function useIncidents() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
