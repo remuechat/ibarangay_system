@@ -151,7 +151,7 @@ function EntryDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="max-w-md p-6 overflow-y-auto">
+      <SheetContent className="max-w-md p-6 overflow-y-auto w=50%" style={{ width: '40vw', maxWidth: '40vw' }}>
         <PropertyForm
           property={property}
           onBack={() => onOpenChange(false)}
@@ -337,7 +337,6 @@ export default function PropertyPage() {
               key={property.propertyId}
               property={property}
               onBorrow={() => handleBorrow(property)}
-              onView={() => handleView(property.propertyId)}
               onEdit={() => handleEdit(property)}
               onReturn={(borrowId) => handleReturn(property.propertyId, borrowId)}
             />
