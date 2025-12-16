@@ -135,7 +135,7 @@ export default function PropertyForm({
         </Button>
 
         <div className="flex-1">
-          <h2 className="text-2xl font-semibold">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
             {property?.propertyId ? "Edit Property" : "Add New Property"}
           </h2>
           <p className="text-muted-foreground">

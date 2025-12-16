@@ -1,27 +1,26 @@
-'use client';
+'use client'
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import { format } from "date-fns";
+import { Search } from "lucide-react"
+import { Plus } from "lucide-react";
 
-// SHADCN UI components
+// SHADCN UI
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectTrigger, SelectValue, SelectItem } from "@/components/ui/select"
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Label } from "@/components/ui/label";
-
-// Lucide icons
-import { LayoutDashboard, Table as TableIcon, ListChecks, KanbanSquare, Search, Loader2 } from "lucide-react";
 
 // Dynamic views
 import DynamicTable from "@/components/dynamicViewers/dynamic-table";
 import DynamicQueue from "@/components/dynamicViewers/dynamic-queue";
 import DynamicKanban from "@/components/dynamicViewers/dynamic-kanban";
-import { format } from "date-fns";
 
-// Hook
+// Hooks
 import { useMaintenance } from "@/hooks/use-maintenance";
+import { MaintenanceEntry } from "@/amplify/backend/functions/maintenanceApi/src/Maintenance";
 
 const columnHeaders: Record<string, string> = {
   id: "ID",
@@ -353,8 +352,7 @@ function EntryDrawer({
   );
 }
 
-// Search Popover
-function SearchPopover({ 
+function MaintenanceSearchPopover({ 
   data, 
   onSearch, 
   columnHeaders 
@@ -441,49 +439,33 @@ function SearchPopover({
   );
 }
 
-// Main Maintenance Page - FIXED
 export default function MaintenancePage() {
   const [view, setView] = useState<"dashboard" | "table" | "queue">("dashboard");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
-
-  // Use hook for backend CRUD
-  const { entries, loading, error, refresh, add, update, remove } = useMaintenance();
-
   const [filteredData, setFilteredData] = useState<any[]>([]);
 
-  // Sync filteredData whenever backend data changes
+  // CRUD hook
+  const { entries, loading, error, refresh, add, update, remove } = useMaintenance();
+
+  // Sync filtered data
   useEffect(() => {
     setFilteredData(entries);
   }, [entries]);
 
-  const handleSave = async (entry: any) => {
-    try {
-      if (entry.id) {
-        // Update existing entry
-        await update(entry.id, entry);
-      } else {
-        // Create new entry
-        await add(entry);
-      }
-      // Refresh to get latest data
-      await refresh();
-    } catch (error) {
-      console.error("Error saving entry:", error);
-      alert("Failed to save entry. Please try again.");
-    }
+  const columnHeaders: Record<string, string> = {
+    id: "ID",
+    type: "Type",
+    status: "Status",
+    priority: "Priority",
+    assignedTo: "Assigned To",
+    lastServiced: "Last Serviced",
+    nextServiceDue: "Next Service Due",
+    scheduledDate: "Scheduled Date",
+    issue: "Issue",
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await remove(id);
-      await refresh();
-    } catch (error) {
-      console.error("Error deleting entry:", error);
-      alert("Failed to delete entry. Please try again.");
-    }
-  };
-
+  // Format data dates
   const formattedData = filteredData.map(d => ({
     ...d,
     lastServiced: d.lastServiced ? format(new Date(d.lastServiced), "yyyy-MM-dd") : "",
@@ -492,17 +474,34 @@ export default function MaintenancePage() {
   }));
 
   const queueData = [...formattedData].sort(
-  (a, b) =>
-    (b.priority ?? 0) - (a.priority ?? 0) ||
+    (a, b) =>
+    (a.priority ?? 0) - (b.priority ?? 0) ||
     String(a.id).localeCompare(String(b.id))
-);
+  );
 
-  const handleHistoryClick = (key: string, value: any, row: any) => {
-    setSelectedEntry(row as any);
-    setDrawerOpen(true);
+  // Handlers
+  const handleSave = async (entry: any) => {
+    try {
+      if (entry.id) await update(entry.id, entry);
+      else await add(entry);
+      await refresh();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save entry.");
+    }
   };
 
-  // Show loading state
+  const handleDelete = async (id: string) => {
+    try {
+      await remove(id);
+      await refresh();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete entry.");
+    }
+  };
+
+  // Show loading
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -511,7 +510,7 @@ export default function MaintenancePage() {
     );
   }
 
-  // Show error state
+  // Show error
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4">
@@ -522,74 +521,87 @@ export default function MaintenancePage() {
   }
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+    <div className="space-y-6 p-4">
+      {/* HEADER */}
+      <div className="flex items-center justify-between px-6">
+        <h1 className="text-2xl font-bold">Maintenance and Repairs</h1>
         <div className="flex gap-2">
-          <Button 
-            variant={view === "dashboard" ? "default" : "ghost"} 
-            onClick={() => setView("dashboard")} 
-            className="text-lg font-bold px-4 py-2"
-          >
-            Maintenance Dashboard
+          <MaintenanceSearchPopover data={entries} onSearch={setFilteredData} columnHeaders={columnHeaders} />
+          <Button variant="outline" onClick={refresh}>Refresh</Button>
+          <Button variant="default" onClick={() => { setSelectedEntry(null); setDrawerOpen(true); }}><Plus className="w-4 h-4 mr-2" /> New
           </Button>
-          <Button variant={view === "table" ? "default" : "outline"} onClick={() => setView("table")}>
-            <TableIcon className="w-4 h-4 mr-2" /> Table
-          </Button>
-          <Button variant={view === "queue" ? "default" : "outline"} onClick={() => setView("queue")}>
-            <ListChecks className="w-4 h-4 mr-2" /> Queue
-          </Button>
-        </div>
-
-        <div className="flex gap-2">
-          <SearchPopover data={entries} onSearch={setFilteredData} columnHeaders={columnHeaders} />
-          <Button onClick={refresh} variant="outline">Refresh</Button>
-          <Button variant="default" onClick={() => { setSelectedEntry(null); setDrawerOpen(true); }}>New</Button>
         </div>
       </div>
+      {/* SWITCH BUTTONS */}
+      <div className="flex items-center justify-start px-6 gap-2">
+        <Button variant={view === "table" ? "default" : "outline"} onClick={() => setView("table")}>
+          <TableIcon className="w-4 h-4 mr-2" /> List
+        </Button>
+        <Button variant={view === "queue" ? "default" : "outline"} onClick={() => setView("queue")}>
+          <ListChecks className="w-4 h-4 mr-2" /> By Priority
+        </Button>
+        <Button variant={view === "kanban" ? "default" : "outline"} onClick={() => setView("kanban")}>
+          <KanbanSquare className="w-4 h-4 mr-2" /> By Status
+        </Button>
+      </div>
 
-      {view === "table" ? (
-        <div className="">
-          <DynamicTable
-            data={formattedData}
-            columnHeaders={columnHeaders}
-            onRowClick={(row) => { setSelectedEntry(row as any); setDrawerOpen(true); }}
-          />
-        </div>
- 
-      ) : view === "queue" ? (
+      {/* VIEWS */}
+      {view === "table" && (
+        <DynamicTable
+          data={formattedData}
+          columnHeaders={columnHeaders}
+          onRowClick={(row) => { setSelectedEntry(row); setDrawerOpen(true); }}
+        />
+      )}
+      {view === "queue" && (
         <DynamicQueue
           data={queueData}
-          renderCard={(row) => (
-            <div
-              className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-lg transition"
-              onClick={() => { setSelectedEntry(row); setDrawerOpen(true); }}
-            >
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-semibold">{row.type}</span>
-                <span className="text-sm font-medium text-gray-500">Priority {row.priority}</span>
+          renderCard={(row) => {
+            const { theme } = useTheme();
+
+            return (
+              <div
+                className={`
+                  rounded-lg shadow p-4 cursor-pointer transition 
+                  hover:shadow-lg
+                  ${theme === "dark" ? "bg-gray-800 text-gray-200" : "bg-gray-50 text-gray-800"}
+                `}
+                onClick={() => { setSelectedEntry(row); setDrawerOpen(true); }}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold">{row.type}</span>
+                  <span className="text-sm font-medium text-gray-500">Priority {row.priority}</span>
+                </div>
+                <div className="text-sm mb-1">ID: {row.id}</div>
+                <div className="text-sm mb-1">Status: {row.status}</div>
+                <div className="text-sm mb-1">Assigned: {row.assignedTo}</div>
+                {row.issue && <div className="text-sm text-purple-600 mt-2">{row.issue}</div>}
+                {row.scheduledDate && (
+                  <div className="text-xs text-gray-500 mt-1">Scheduled: {row.scheduledDate}</div>
+                )}
               </div>
-              <div className="text-sm text-gray-700 mb-1">ID: {row.id}</div>
-              <div className="text-sm text-gray-700 mb-1">Status: {row.status}</div>
-              <div className="text-sm text-gray-700 mb-1">Assigned: {row.assignedTo}</div>
-              {row.issue && <div className="text-sm text-purple-600 mt-2">{row.issue}</div>}
-              {row.scheduledDate && <div className="text-xs text-gray-500 mt-1">Scheduled: {row.scheduledDate}</div>}
-            </div>
-          )}
+            );
+          }}
         />
-      ) : (
+      )}
+      {view === "kanban" && (
         <DynamicKanban
           data={formattedData}
-          onCardClick={(card) => { setSelectedEntry(card as any); setDrawerOpen(true); }}
+          onCardClick={(card) => { setSelectedEntry(card); setDrawerOpen(true); }}
         />
       )}
 
-      <EntryDrawer
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        entry={selectedEntry}
-        onSave={handleSave}
-        onDelete={handleDelete}
-      />
+      {/* ENTRY SHEET */}
+      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <SheetContent className="p-6 max-w-md overflow-y-auto">
+          <MaintenanceForm
+            entry={selectedEntry}
+            onSave={handleSave}
+            onBack={() => setDrawerOpen(false)}
+            onDelete={handleDelete}
+          />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
